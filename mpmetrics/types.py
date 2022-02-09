@@ -3,6 +3,7 @@
 
 import ctypes
 
+from .generics import IntType, ObjectType, ProductType
 from .util import align, classproperty
 
 def _wrap_ctype(__name__, ctype):
@@ -53,3 +54,56 @@ class Struct:
     @classproperty
     def align(cls):
         return max(field.align for name, field in cls._fields_.items())
+
+def Array(__name__, cls, n):
+    if n < 1:
+        raise ValueError("n must be strictly positive")
+
+    member_size = align(cls.size, cls.align)
+    size = member_size * n
+
+    def __init__(self, mem, init=True):
+        self._mem = mem
+        self._vals = []
+        for i in range(n):
+            off = i * member_size
+            self._vals.append(cls(mem[off:off + member_size], init))
+
+    def __len__(self):
+        return n
+
+    def __getitem__(self, key):
+        return self._vals[key]
+
+    def __setitem__(self, key, value):
+        self._vals[key] = value
+
+    def __iter__(self):
+        return iter(self._vals)
+
+    ns = locals()
+    ns['align'] = cls.align
+    del ns['member_size']
+    del ns['cls']
+    del ns['n']
+
+    return type(__name__, (), ns)
+
+Array = ProductType('Array', Array, (ObjectType, IntType))
+
+class _Box:
+    def __init__(self, heap, *args, **kwargs):
+        self._args = args
+        self._kwargs = kwargs
+        block = heap.malloc(self.size)
+        super().__init__(block.deref(), init=True, *self._args, **self._kwargs)
+        self._block = block
+
+    def __getstate__(self):
+        return self._block, self._args, self._kwargs
+
+    def __setstate__(self, state):
+        self._block, self._args, self._kwargs = state
+        super().__init__(self._block.deref(), init=False, *self._args, **self._kwargs)
+
+Box = ObjectType('Box', lambda name, cls: type(name, (_Box, cls), {}))

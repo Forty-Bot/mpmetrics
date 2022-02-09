@@ -1,0 +1,11 @@
+# Python bits
+**/__pycache__
+
+# C bits
+*.d
+*.o
+*.so
+
+# Test bits
+.hypothesis
+.coverage*

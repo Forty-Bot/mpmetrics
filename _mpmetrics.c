@@ -112,6 +112,38 @@ int PyType_AddSizeConstant(PyTypeObject *type, const char *name, size_t value)
 	return PyType_AddConstant(type, name, obj);
 }
 
+int PyType_AddLLConstant(PyTypeObject *type, const char *name, long long value)
+{
+	PyObject *obj = PyLong_FromLongLong(value);
+
+	if (!obj)
+		return -1;
+
+	return PyType_AddConstant(type, name, obj);
+}
+
+int PyType_AddULLConstant(PyTypeObject *type, const char *name,
+			  unsigned long long value)
+{
+	PyObject *obj = PyLong_FromUnsignedLongLong(value);
+
+	if (!obj)
+		return -1;
+
+	return PyType_AddConstant(type, name, obj);
+}
+
+int PyType_AddDoubleConstant(PyTypeObject *type, const char *name,
+			     double value)
+{
+	PyObject *obj = PyLong_FromDouble(value);
+
+	if (!obj)
+		return -1;
+
+	return PyType_AddConstant(type, name, obj);
+}
+
 static PyModuleDef module = {
 	PyModuleDef_HEAD_INIT,
 	.m_name = "_mpmetrics",
@@ -130,7 +162,11 @@ PyMODINIT_FUNC PyInit__mpmetrics(void)
 	if (PyModule_AddType(m, &BufferType))
 		goto error;
 
-	if (LockType_Add(m)) {
+	if (LockType_Add(m))
+		goto error;
+
+	if (AtomicTypes_Add(m)) {
+error:
 		Py_DECREF(m);
 		return NULL;
 	}

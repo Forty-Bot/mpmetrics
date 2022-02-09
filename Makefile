@@ -8,7 +8,7 @@ LDFLAGS := -Wl,--gc-sections
 MAKEFLAGS += -r
 .SUFFIXES:
 
-OBJS := lock.o _mpmetrics.o
+OBJS := atomic.o lock.o _mpmetrics.o
 DEPS := $(OBJS:.o=.d)
 
 _mpmetrics.so: $(OBJS)

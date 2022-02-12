@@ -5,6 +5,7 @@
 
 from contextlib import nullcontext
 import multiprocessing
+import pickle
 import random
 import time
 
@@ -297,6 +298,11 @@ def test_time(registry, cls, name):
     metric = cls('m', 'help', registry=registry)
     metric.time()(time.sleep)(0.001)
     assert get_sample_value(metric, name) >= 0.001
+
+@pytest.mark.parametrize('cls', (Counter, Gauge, Summary, Histogram))
+def test_pickle(registry, cls):
+    metric = cls('name', 'help', labelnames=('l'), registry=registry)
+    pickle.loads(pickle.dumps(metric.labels('x')))
 
 class TestEnum:
     @pytest.fixture

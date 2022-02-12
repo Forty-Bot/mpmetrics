@@ -208,7 +208,7 @@ class Counter(Struct):
 
 Counter = CollectorFactory(Box[Counter])
 
-class Gauge:
+class _Gauge:
     typ = 'gauge'
 
     def __init__(self, heap):
@@ -240,7 +240,7 @@ class Gauge:
     def time(self):
         return Timer(self.set)
 
-Gauge = CollectorFactory(Gauge)
+Gauge = CollectorFactory(_Gauge)
 
 class _SummaryData(Struct):
     _fields_ = {

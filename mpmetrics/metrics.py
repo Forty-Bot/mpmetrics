@@ -181,7 +181,7 @@ class Counter(Struct):
         '_created': Double,
     }
 
-    def __init__(self, mem,  init=True):
+    def __init__(self, mem, init=True, **kwargs):
         super().__init__(mem, init)
         if init:
             self._created.value = time.time()
@@ -211,7 +211,7 @@ Counter = CollectorFactory(Box[Counter])
 class _Gauge:
     typ = 'gauge'
 
-    def __init__(self, heap):
+    def __init__(self, heap, **kwargs):
         self._value = Box[AtomicDouble](heap)
 
     def inc(self, amount=1):
@@ -258,7 +258,7 @@ class Summary(Struct):
         '_created': Double,
     }
 
-    def __init__(self, mem, init=True):
+    def __init__(self, mem, init=True, **kwargs):
         super().__init__(mem, init)
         if init:
             self._created.value = time.time()
@@ -315,7 +315,7 @@ def _Histogram(__name__, bucket_count):
         '_created': Double,
     }
 
-    def __init__(self, mem, thresholds, init=True):
+    def __init__(self, mem, thresholds, init=True, **kwargs):
         assert len(thresholds) == bucket_count
         self.thresholds = thresholds
 

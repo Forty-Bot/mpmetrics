@@ -38,6 +38,8 @@ if __name__ == '__main__':
     generate_requests()
 ```
 
+Navigate to http://localhost:8000/metrics to view the results.
+
 ## Features
 
 * Completely thread- and process-safe.
@@ -56,6 +58,7 @@ The following behaviors differ from `prometheus_client`:
 * Enums (StateSets) are not implemented.
 * Exemplars are not implemented.
 * Using a value of `None` for `registry` is not supported.
+* `multiprocessing_mode` is not supported. Gauges have a single series with one value.
 
 ## Limitations
 
@@ -63,3 +66,4 @@ The following limitations apply to this library
 
 * Only Unix is supported, and only Linux x86-64 has been tested.
 * Only the `fork` start method has been tested, though the others should work.
+* The python interpreter stats will only be from the current process.

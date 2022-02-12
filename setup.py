@@ -35,6 +35,9 @@ setuptools.setup(
         'prometheus_client',
     ],
     extras_require = {
+        "flask": [
+            'prometheus_flask_exporter',
+        ],
         "tests": [
             'hypothesis',
             'pytest',

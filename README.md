@@ -45,6 +45,8 @@ if __name__ == '__main__':
 * Updating metrics is lock-free.
 * TODO: better performance?
 
+Users of `prometheus_flask_exporter` can import `mpmetrics.flask` instead.
+
 ## Compatibility
 
 The following behaviors differ from `prometheus_client`:

@@ -30,46 +30,40 @@ class Heap(Struct):
 
     def __new__(cls, map_size=PAGESIZE, filename=None):
         cls._heaps_lock.acquire()
-        if filename:
-            heap = cls._heaps.get(filename, None)
-            if heap:
-                cls._heaps_lock.release()
-                return heap
-
         try:
+            if filename:
+                if heap := cls._heaps.get(filename, None):
+                    return heap
+
             return super().__new__(cls)
         except:
-            if filename:
-                cls._heaps_lock.release()
+            cls._heaps_lock.release()
             raise
 
     # Must be called with Heap._heaps_lock held; it will be released
     def __init__(self, map_size=PAGESIZE, filename=None):
         try:
+            if filename:
+                return
+
             if map_size % PAGESIZE:
                 raise ValueError("size must be a multiple of {}".format(PAGESIZE))
             _align_check(map_size)
             self.map_size = map_size
 
             # File backing our shared memory
-            if filename:
-                self._file = open(filename, 'a+b') 
-            else:
-                self._file = NamedTemporaryFile()
+            self._file = NamedTemporaryFile()
             self._fd = self._file.fileno()
-
-            if not filename:
-                # Allocate a page to start with
-                os.truncate(self._fd, map_size)
+            # Allocate a page to start with
+            os.truncate(self._fd, map_size)
 
             # Process-local shared memory maps
             self._maps = [mmap.mmap(self._fd, map_size)]
             # Lock for _maps
             self._lock = threading.Lock()
 
-            super().__init__(memoryview(self._maps[0])[:self.size], filename)
-            if not filename:
-                self._base.value = self.size
+            super().__init__(memoryview(self._maps[0])[:self.size])
+            self._base.value = self.size
 
             # Add ourself to the list of heaps
             self._heaps[self._file.name] = self
@@ -83,9 +77,25 @@ class Heap(Struct):
         return self.map_size, self._file.name
 
     def __setstate__(self, state):
-        map_size, filename = state
-        if not hasattr(self, '_file'):
-            self.__init__(map_size, filename)
+        try:
+            if hasattr(self, '_file'):
+                return
+
+            self.map_size, filename = state
+            self._file = open(filename, 'a+b')
+            self._fd = self._file.fileno()
+
+            # Process-local shared memory maps
+            self._maps = [mmap.mmap(self._fd, self.map_size)]
+            # Lock for _maps
+            self._lock = threading.Lock()
+
+            super().__init__(memoryview(self._maps[0])[:self.size], init=False)
+
+            # Add ourself to the list of heaps
+            self._heaps[self._file.name] = self
+        finally:
+            self._heaps_lock.release()
 
     def __del__(self):
         if hasattr(self, '_file'):

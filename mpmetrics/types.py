@@ -37,25 +37,28 @@ Int64 = _wrap_ctype('Int64', ctypes.c_int64)
 UInt64 = _wrap_ctype('UInt64', ctypes.c_uint64)
 
 class Struct:
-    def __init__(self, mem, init=True):
-        self._mem = mem
+    @classmethod
+    def _fields_iter(cls):
         off = 0
-        for name, field in self._fields_.items():
+        for name, field in cls._fields_.items():
             off = align(off, field.align)
-            setattr(self, name, field(mem[off:off + field.size], init))
+            yield name, field, off
             off += field.size
-            
+
     @classproperty
     def size(cls):
-        size = 0
-        for name, field in cls._fields_.items():
-            size = align(size, field.align)
-            size += field.size
+        for name, field, off in cls._fields_iter():
+            size = field.size + off
         return size
 
     @classproperty
     def align(cls):
-        return max(field.align for name, field in cls._fields_.items())
+        return max(field.align for field in cls._fields_.values())
+
+    def __init__(self, mem, init=True):
+        self._mem = mem
+        for name, field, off in self._fields_iter():
+            setattr(self, name, field(mem[off:off + field.size], init))
 
 def Array(__name__, cls, n):
     if n < 1:

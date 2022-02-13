@@ -13,6 +13,8 @@ def _wrap_ctype(__name__, ctype):
     def __init__(self, mem, init=True):
         self._mem = mem
         self._value = ctype.from_buffer(mem)
+        if init:
+            self._value.value = 0
 
     def __getattr__(self, name):
         return getattr(self.__dict__['_value'], name)

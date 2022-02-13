@@ -326,6 +326,13 @@ def _Histogram(__name__, bucket_count):
         if init:
             self._created.value = time.time()
 
+    def __getstate__(self):
+        return (*Struct.__getstate__(self), self.thresholds)
+
+    def __setstate__(self, state):
+        Struct.__setstate__(self, state[:-1])
+        self.thresholds = state[-1]
+
     def observe(self, amount, exemplar=None):
         if exemplar is not None:
             raise NotImplementedError("exemplars are not yet supported")

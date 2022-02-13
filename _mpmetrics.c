@@ -58,6 +58,33 @@ static void Buffer_dealloc(BufferObject *self)
 	Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
+static PyObject *Buffer_getstate(BufferObject *self, PyObject *Py_UNUSED(ignored))
+{
+	return PyTuple_Pack(1, Py_NewRef(self->shm.obj));
+}
+
+static PyObject *Buffer_setstate(BufferObject *self, PyObject *arg)
+{
+	if (Buffer_init(self, arg, NULL))
+		return NULL;
+	Py_RETURN_NONE;
+}
+
+static PyMethodDef Buffer_methods[] = {
+	{
+		.ml_name = "__getstate__",
+		.ml_meth = (PyCFunction)Buffer_getstate,
+		.ml_flags = METH_NOARGS,
+	},
+	{
+		.ml_name = "__setstate__",
+		.ml_meth = (PyCFunction)Buffer_setstate,
+		.ml_flags = METH_O,
+	},
+	{ /* Sentinel */ },
+};
+
+
 PyTypeObject BufferType = {
 	PyObject_HEAD_INIT(NULL)
 	.tp_basicsize = sizeof(BufferObject),
@@ -70,6 +97,7 @@ PyTypeObject BufferType = {
 	.tp_dealloc = (destructor)Buffer_dealloc,
 	.tp_traverse = (traverseproc)Buffer_traverse,
 	.tp_clear = (inquiry)Buffer_clear,
+	.tp_methods = Buffer_methods,
 };
 
 static int PyType_AddConstant(PyTypeObject *type, const char *name,

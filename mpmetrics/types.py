@@ -16,6 +16,13 @@ def _wrap_ctype(__name__, ctype):
         if init:
             self._value.value = 0
 
+    def __getstate__(self):
+        return (self._mem,)
+
+    def __setstate__(self, state):
+        self._mem = state[0]
+        self._value = ctype.from_buffer(self._mem)
+
     def __getattr__(self, name):
         return getattr(self.__dict__['_value'], name)
 
@@ -60,6 +67,16 @@ class Struct:
         for name, field, off in self._fields_iter():
             setattr(self, name, field(mem[off:off + field.size], init))
 
+    def __getstate__(self):
+        return self._mem, tuple(getattr(self, name).__getstate__()[1:] for name in self._fields_)
+
+    def __setstate__(self, state):
+        self._mem, fields_states = state
+        for (name, field, off), state in zip(self._fields_iter(), fields_states):
+            field = field.__new__(field)
+            field.__setstate__((self._mem[off:off + field.size], *state))
+            setattr(self, name, field)
+
 def Array(__name__, cls, n):
     if n < 1:
         raise ValueError("n must be strictly positive")
@@ -73,6 +90,18 @@ def Array(__name__, cls, n):
         for i in range(n):
             off = i * member_size
             self._vals.append(cls(mem[off:off + member_size], init))
+
+    def __getstate__(self):
+        return self._mem, tuple(val.__getstate__()[1:] for val in self._vals)
+
+    def __setstate__(self, state):
+        self._mem, vals_states = state
+        self._vals = []
+        for i, state in zip(range(n), vals_states):
+            off = i * member_size
+            val = cls.__new__(cls)
+            val.__setstate__((self._mem[off:off + member_size], *state))
+            self._vals.append(val)
 
     def __len__(self):
         return n

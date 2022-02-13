@@ -25,7 +25,7 @@ setuptools.setup(
             ],
         ),
     ],
-    license = 'GPL-3.0-only',
+    license = 'LGPL-3.0-only',
     license_files = [
         'COPYING',
         'LICENSES/*',

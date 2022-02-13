@@ -40,26 +40,10 @@ typedef struct {
 #define INIT paste(NAME, _init)
 static int INIT(OBJECT *self, PyObject *args, PyObject *kwds)
 {
-	int err, init = 1;
-	char *keywords[] = { "mem", "init", NULL };
-	PyObject *mem = NULL;
-
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|p", keywords,
-					 &mem, &init))
+	if (BufferType.tp_init((PyObject *)self, args, kwds))
 		return -1;
 
-	args = Py_BuildValue("(O)", mem);
-	if (!args)
-		return -1;
-
-	err = BufferType.tp_init((PyObject *)self, args, NULL);
-	Py_DECREF(args);
-	if (err)
-		return err;
-
-	if (init)
-		atomic_init((_Atomic PTYPE *)self->shm.buf, 0);
-
+	atomic_init((_Atomic PTYPE *)self->shm.buf, 0);
 	return 0;
 }
 

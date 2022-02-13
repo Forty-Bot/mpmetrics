@@ -181,10 +181,9 @@ class Counter(Struct):
         '_created': Double,
     }
 
-    def __init__(self, mem, init=True, **kwargs):
-        super().__init__(mem, init)
-        if init:
-            self._created.value = time.time()
+    def __init__(self, mem, **kwargs):
+        super().__init__(mem)
+        self._created.value = time.time()
 
     def inc(self, amount=1, exemplar=None):
         if amount < 0:
@@ -214,8 +213,8 @@ class Gauge(Struct):
         '_value': AtomicDouble,
     }
 
-    def __init__(self, mem, init=True, **kwargs):
-        super().__init__(mem, init)
+    def __init__(self, mem, **kwargs):
+        super().__init__(mem)
 
     def inc(self, amount=1):
         self._value.add(amount)
@@ -261,10 +260,9 @@ class Summary(Struct):
         '_created': Double,
     }
 
-    def __init__(self, mem, init=True, **kwargs):
-        super().__init__(mem, init)
-        if init:
-            self._created.value = time.time()
+    def __init__(self, mem, **kwargs):
+        super().__init__(mem)
+        self._created.value = time.time()
 
     def observe(self, amount):
         data = self._data[self._count.add(1) >> 63]
@@ -318,13 +316,12 @@ def _Histogram(__name__, bucket_count):
         '_created': Double,
     }
 
-    def __init__(self, mem, thresholds, init=True, **kwargs):
+    def __init__(self, mem, thresholds, **kwargs):
         assert len(thresholds) == bucket_count
         self.thresholds = thresholds
 
-        Struct.__init__(self, mem, init)
-        if init:
-            self._created.value = time.time()
+        Struct.__init__(self, mem)
+        self._created.value = time.time()
 
     def __getstate__(self):
         return (*Struct.__getstate__(self), self.thresholds)

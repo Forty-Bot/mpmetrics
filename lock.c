@@ -24,25 +24,11 @@ typedef BufferObject LockObject;
 
 static int Lock_init(LockObject *self, PyObject *args, PyObject *kwds)
 {
-	int err, init = 1;
-	char *keywords[] = { "mem", "init", NULL };
-	PyObject *mem = NULL;
+	int err;
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|p", keywords,
-					 &mem, &init))
-		return -1;
-
-	args = Py_BuildValue("(O)", mem);
-	if (!args)
-		return -1;
-
-	err = BufferType.tp_init((PyObject *)self, args, NULL);
-	Py_DECREF(args);
+	err = BufferType.tp_init((PyObject *)self, args, kwds);
 	if (err)
 		return err;
-
-	if (!init)
-		return 0;
 
 	err = pthread_mutex_init(self->shm.buf, &mutexattr);
 	if (err) {

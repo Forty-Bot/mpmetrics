@@ -74,14 +74,14 @@ class Heap(Struct):
         return self.map_size, self._file.name
 
     def __getstate__(self):
-        return self.map_size, self._file.name
+        return self.map_size, self._file.name, super().__getstate__()[1:]
 
     def __setstate__(self, state):
         try:
             if hasattr(self, '_file'):
                 return
 
-            self.map_size, filename = state
+            self.map_size, filename, super_state = state
             self._file = open(filename, 'a+b')
             self._fd = self._file.fileno()
 
@@ -90,7 +90,7 @@ class Heap(Struct):
             # Lock for _maps
             self._lock = threading.Lock()
 
-            super().__init__(memoryview(self._maps[0])[:self.size], init=False)
+            super().__setstate__((memoryview(self._maps[0])[:self.size], *super_state))
 
             # Add ourself to the list of heaps
             self._heaps[self._file.name] = self

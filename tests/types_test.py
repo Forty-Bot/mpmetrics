@@ -41,7 +41,7 @@ def recursive_types(classes):
     return arrays() | structs()
 
 base_types = st.sampled_from((AtomicInt64, AtomicUInt64, AtomicDouble, Double, Size_t, Lock))
-types = st.recursive(base_types, recursive_types, max_leaves=20)
+types = st.recursive(base_types, recursive_types)
 
 @given(types)
 @settings(max_examples=25)

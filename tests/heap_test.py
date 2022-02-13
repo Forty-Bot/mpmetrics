@@ -25,7 +25,7 @@ def test_small_size(size):
 @given(st.integers(min_value=mmap.PAGESIZE + 1))
 def test_big_size(size):
     with pytest.raises(ValueError):
-        Heap().malloc(size)
+        Heap(map_size=mmap.PAGESIZE).malloc(size)
 
 @given(st.integers().filter(lambda a: a <= 0 or math.log2(a) % 1))
 def test_bad_align(alignment):

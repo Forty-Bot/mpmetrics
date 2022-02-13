@@ -16,7 +16,7 @@ SC_LEVEL1_DCACHE_LINESIZE = 190
 if (CACHELINESIZE := os.sysconf(SC_LEVEL1_DCACHE_LINESIZE)) < 0:
     CACHELINESIZE = 64 # Assume 64-byte cache lines
 
-PAGESIZE = mmap.ALLOCATIONGRANULARITY
+PAGESIZE = 64 * 1024
 
 class Heap(Struct):
     _fields_ = {
@@ -46,8 +46,8 @@ class Heap(Struct):
             if filename:
                 return
 
-            if map_size % PAGESIZE:
-                raise ValueError("size must be a multiple of {}".format(PAGESIZE))
+            if map_size % mmap.ALLOCATIONGRANULARITY:
+                raise ValueError("size must be a multiple of {}".format(mmap.ALLOCATIONGRANULARITY))
             _align_check(map_size)
             self.map_size = map_size
 

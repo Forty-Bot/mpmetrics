@@ -208,11 +208,14 @@ class Counter(Struct):
 
 Counter = CollectorFactory(Box[Counter])
 
-class _Gauge:
+class Gauge(Struct):
     typ = 'gauge'
+    _fields_ = {
+        '_value': AtomicDouble,
+    }
 
-    def __init__(self, heap, **kwargs):
-        self._value = Box[AtomicDouble](heap)
+    def __init__(self, mem, init=True, **kwargs):
+        super().__init__(mem, init)
 
     def inc(self, amount=1):
         self._value.add(amount)
@@ -240,7 +243,7 @@ class _Gauge:
     def time(self):
         return Timer(self.set)
 
-Gauge = CollectorFactory(_Gauge)
+Gauge = CollectorFactory(Box[Gauge])
 
 class _SummaryData(Struct):
     _fields_ = {

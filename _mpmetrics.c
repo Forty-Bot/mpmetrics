@@ -58,17 +58,6 @@ static void Buffer_dealloc(BufferObject *self)
 	Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
-static PyMemberDef Buffer_members[] = {
-	{
-		.name = "_mem",
-		.type = T_OBJECT,
-		.offset = offsetof(BufferObject, shm) + offsetof(Py_buffer, obj),
-		.flags = READONLY | READ_RESTRICTED,
-		.doc = "shared memory",
-	},
-	{ /* Sentinel */ },
-};
-
 PyTypeObject BufferType = {
 	PyObject_HEAD_INIT(NULL)
 	.tp_basicsize = sizeof(BufferObject),
@@ -81,7 +70,6 @@ PyTypeObject BufferType = {
 	.tp_dealloc = (destructor)Buffer_dealloc,
 	.tp_traverse = (traverseproc)Buffer_traverse,
 	.tp_clear = (inquiry)Buffer_clear,
-	.tp_members = Buffer_members,
 };
 
 static int PyType_AddConstant(PyTypeObject *type, const char *name,

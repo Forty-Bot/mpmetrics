@@ -10,17 +10,14 @@ def _wrap_ctype(__name__, ctype):
     size = ctypes.sizeof(ctype)
     align = ctypes.alignment(ctype)
 
-    def __init__(self, mem):
+    def __init__(self, mem, heap=None):
         self._mem = mem
         self._value = ctype.from_buffer(mem)
         self._value.value = 0
 
-    def __getstate__(self):
-        return (self._mem,)
-
-    def __setstate__(self, state):
-        self._mem = state[0]
-        self._value = ctype.from_buffer(self._mem)
+    def _setstate(self, mem, heap=None):
+        self._mem = mem
+        self._value = ctype.from_buffer(mem)
 
     def __getattr__(self, name):
         return getattr(self.__dict__['_value'], name)
@@ -61,19 +58,16 @@ class Struct:
     def align(cls):
         return max(field.align for field in cls._fields_.values())
 
-    def __init__(self, mem):
+    def __init__(self, mem, heap=None):
         self._mem = mem
         for name, field, off in self._fields_iter():
-            setattr(self, name, field(mem[off:off + field.size]))
+            setattr(self, name, field(mem[off:off + field.size], heap=heap))
 
-    def __getstate__(self):
-        return self._mem, tuple(getattr(self, name).__getstate__()[1:] for name in self._fields_)
-
-    def __setstate__(self, state):
-        self._mem, fields_states = state
-        for (name, field, off), state in zip(self._fields_iter(), fields_states):
+    def _setstate(self, mem, heap=None):
+        self._mem = mem
+        for name, field, off in self._fields_iter():
             field = field.__new__(field)
-            field.__setstate__((self._mem[off:off + field.size], *state))
+            field._setstate(self._mem[off:off + field.size], heap=heap)
             setattr(self, name, field)
 
 def Array(__name__, cls, n):
@@ -83,23 +77,20 @@ def Array(__name__, cls, n):
     member_size = align(cls.size, cls.align)
     size = member_size * n
 
-    def __init__(self, mem):
+    def __init__(self, mem, heap=None):
         self._mem = mem
         self._vals = []
         for i in range(n):
             off = i * member_size
-            self._vals.append(cls(self._mem[off:off + member_size]))
+            self._vals.append(cls(self._mem[off:off + member_size], heap=heap))
 
-    def __getstate__(self):
-        return self._mem, tuple(val.__getstate__()[1:] for val in self._vals)
-
-    def __setstate__(self, state):
-        self._mem, vals_states = state
+    def _setstate(self, mem, heap=None):
+        self._mem = mem
         self._vals = []
-        for i, state in zip(range(n), vals_states):
+        for i in range(n):
             off = i * member_size
             val = cls.__new__(cls)
-            val.__setstate__((self._mem[off:off + member_size], *state))
+            val._setstate(self._mem[off:off + member_size], heap=heap)
             self._vals.append(val)
 
     def __len__(self):
@@ -127,14 +118,14 @@ Array = ProductType('Array', Array, (ObjectType, IntType))
 class _Box:
     def __init__(self, heap, *args, **kwargs):
         block = heap.malloc(self.size)
-        super().__init__(block.deref(), *args, **kwargs)
+        super().__init__(block.deref(), *args, heap=heap, **kwargs)
         self._block = block
 
     def __getstate__(self):
-        return self._block, *super().__getstate__()[1:]
+        return self._block
 
     def __setstate__(self, state):
-        self._block = state[0]
-        super().__setstate__((self._block.deref(), *state[1:]))
+        self._block = state
+        super()._setstate(self._block.deref(), heap=self._block.heap)
 
 Box = ObjectType('Box', lambda name, cls: type(name, (_Box, cls), {}))

@@ -58,28 +58,19 @@ static void Buffer_dealloc(BufferObject *self)
 	Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
-static PyObject *Buffer_getstate(BufferObject *self, PyObject *Py_UNUSED(ignored))
+static PyObject *Buffer_setstate(BufferObject *self, PyObject *args,
+				 PyObject *kwds)
 {
-	return PyTuple_Pack(1, Py_NewRef(self->shm.obj));
-}
-
-static PyObject *Buffer_setstate(BufferObject *self, PyObject *arg)
-{
-	if (Buffer_init(self, arg, NULL))
+	if (Buffer_init(self, args, kwds))
 		return NULL;
 	Py_RETURN_NONE;
 }
 
 static PyMethodDef Buffer_methods[] = {
 	{
-		.ml_name = "__getstate__",
-		.ml_meth = (PyCFunction)Buffer_getstate,
-		.ml_flags = METH_NOARGS,
-	},
-	{
-		.ml_name = "__setstate__",
+		.ml_name = "_setstate",
 		.ml_meth = (PyCFunction)Buffer_setstate,
-		.ml_flags = METH_O,
+		.ml_flags = METH_VARARGS | METH_KEYWORDS,
 	},
 	{ /* Sentinel */ },
 };

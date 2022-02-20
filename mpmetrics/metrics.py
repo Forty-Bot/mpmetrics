@@ -310,6 +310,7 @@ _HistogramData = IntType('_HistogramData', _HistogramData)
 def _Histogram(__name__, bucket_count):
     typ = 'histogram'
     _fields_ = {
+        '_thresholds': Array[Double, bucket_count],
         '_lock': _mpmetrics.Lock,
         '_data': Array[_HistogramData[bucket_count], 2],
         '_count': AtomicUInt64,
@@ -317,18 +318,16 @@ def _Histogram(__name__, bucket_count):
     }
 
     def __init__(self, mem, thresholds, **kwargs):
+        Struct.__init__(self, mem)
         assert len(thresholds) == bucket_count
         self.thresholds = thresholds
-
-        Struct.__init__(self, mem)
+        for threshold, initial in zip(self._thresholds, thresholds):
+            threshold.value = initial
         self._created.value = time.time()
 
-    def __getstate__(self):
-        return (*Struct.__getstate__(self), self.thresholds)
-
-    def __setstate__(self, state):
-        Struct.__setstate__(self, state[:-1])
-        self.thresholds = state[-1]
+    def _setstate(self, mem, heap):
+        Struct._setstate(self, mem)
+        self.thresholds = tuple(threshold.value for threshold in self._thresholds)
 
     def observe(self, amount, exemplar=None):
         if exemplar is not None:
@@ -392,7 +391,7 @@ class _HistogramFactory:
             thresholds.append(float('inf'))
         if len(thresholds) < 2:
             raise ValueError('must have at least two thresholds')
-        thresholds =  tuple(thresholds)
+        thresholds = tuple(thresholds)
 
         histogram = Box[_Histogram[len(thresholds)]]
         return histogram(heap, thresholds=thresholds, **kwargs)

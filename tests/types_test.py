@@ -4,12 +4,13 @@
 import pickle
 
 from hypothesis import assume, given, reject, settings, strategies as st
+from hypothesis.stateful import Bundle, RuleBasedStateMachine, rule
 import pytest
 
 from mpmetrics.atomic import AtomicInt64, AtomicUInt64, AtomicDouble
 from mpmetrics.generics import ObjectType, ListType
-from mpmetrics.heap import PAGESIZE
-from mpmetrics.types import Array, Box, Double, Size_t, Struct
+from mpmetrics.heap import PAGESIZE, Heap
+from mpmetrics.types import Array, Box, Dict, Double, Size_t, Struct
 from _mpmetrics import Lock
 
 from .common import heap
@@ -66,3 +67,89 @@ def test_array(heap, n):
 def test_bad_size(n):
     with pytest.raises(ValueError):
         Array[Size_t, n]
+
+@settings(max_examples=25)
+class DictComparison(RuleBasedStateMachine):
+    keys = Bundle('keys')
+    values = Bundle('values')
+    heap = Heap()
+
+    def __init__(self):
+        super().__init__()
+        self.dict = Box[Dict](self.heap)
+        self.model = {}
+
+    @rule(target=keys, k=st.text())
+    def key(self, k):
+        return k
+
+    @rule(target=values, v=st.text())
+    def value(self, v):
+        return v
+
+    @rule()
+    def len(self):
+        assert len(self.model) == len(self.dict)
+
+    @rule(k=keys)
+    def getitem(self, k):
+        try:
+            model_k = self.model[k]
+        except KeyError:
+            with pytest.raises(KeyError):
+                dict_k = self.dict[k]
+        else:
+            dict_k = self.dict[k]
+            assert model_k == dict_k
+
+    @rule(k=keys, v=values)
+    def setitem(self, k, v):
+        self.model[k] = v
+        self.dict[k] = v
+
+    @rule(k=keys)
+    def delitem(self, k):
+        try:
+            del self.model[k]
+        except KeyError:
+            with pytest.raises(KeyError):
+                del self.dict[k]
+        else:
+            del self.dict[k]
+
+    @rule()
+    def iters(self):
+        for f in (
+            iter,
+            reversed,
+            lambda d: d.items(),
+            lambda d: d.keys(),
+            lambda d: d.values(),
+        ):
+            for m, d in zip(f(self.model), f(self.dict)):
+                assert m == d
+
+    @rule(k=keys)
+    def contains(self, k):
+        assert (k in self.model) == (k in self.dict)
+
+    @rule(other=st.dictionaries(keys, values))
+    def update(self, other):
+        self.model.update(other)
+        self.dict.update(other)
+
+    @rule(other=st.dictionaries(keys, values))
+    def ior(self, other):
+        self.model |= other
+        self.dict |= other
+
+    @rule(other=st.dictionaries(keys, values))
+    def union(self, other):
+        assert (self.model | other) == (self.dict | other)
+
+    @rule()
+    def clear(self):
+        self.model.clear()
+        self.dict.clear()
+
+DictTest = DictComparison.TestCase

@@ -6,7 +6,6 @@
 import bisect
 from contextlib import contextmanager
 import itertools
-import multiprocessing
 import threading
 import time
 
@@ -16,7 +15,7 @@ import _mpmetrics
 from .atomic import AtomicUInt64, AtomicDouble
 from .generics import IntType
 from .heap import Heap
-from .types import Box, Double, Array, Struct
+from .types import Box, Dict, Double, Array, Struct
 from .util import classproperty, genmask
 
 @contextmanager
@@ -49,17 +48,15 @@ class Collector:
         self._metric._sample(add_sample)
         yield family
 
-class LabeledCollector:
-    _manager_lock = threading.Lock()
+class LabeledCollector(Struct):
+    _fields_ = {
+        '_shared_lock': _mpmetrics.Lock,
+        '_metrics': Dict,
+    }
 
-    @classproperty
-    def manager(cls):
-        with cls._manager_lock:
-            if not hasattr(cls, '_manager'):
-                cls._manager = multiprocessing.Manager()
-            return cls._manager
+    def __init__(self, mem, metric, name, docs, labelnames, registry, kwargs, heap):
+        super().__init__(mem, heap=heap)
 
-    def __init__(self, metric, name, docs, labelnames, registry, heap, kwargs):
         self._metric = metric
         self._name = name
         self._docs = docs
@@ -79,9 +76,6 @@ class LabeledCollector:
 
         self._lock = threading.Lock()
         self._cache = dict()
-
-        self._shared_lock = Box[_mpmetrics.Lock](self._heap)
-        self._metrics = getattr(registry, 'manager', self.manager).dict()
         registry.register(self)
 
     def _label_values(self, values, labels):
@@ -170,8 +164,8 @@ class CollectorFactory:
         heap = getattr(registry, 'heap', self.heap)
 
         if labelnames:
-            return LabeledCollector(self._metric, name, documentation, labelnames, registry, heap,
-                                    kwargs)
+            return Box[LabeledCollector](heap, self._metric, name, documentation, labelnames,
+                                         registry, kwargs)
         return Collector(self._metric, name, documentation, registry, heap, kwargs)
 
 class Counter(Struct):

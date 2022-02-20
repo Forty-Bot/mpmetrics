@@ -4,7 +4,6 @@
 # Portions of this file are adapted from prometheus_client
 
 from contextlib import nullcontext
-import multiprocessing
 import pickle
 import random
 import time

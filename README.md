@@ -55,8 +55,8 @@ The following behaviors differ from `prometheus_client`:
 
 * Labeled metrics cannot be removed or cleared.
 * Info metrics are not implemented. Use `prometheus_client.Info` instead.
-* Enums (StateSets) are not implemented.
-* Exemplars are not implemented.
+* Enums (StateSets) are not implemented (yet).
+* Exemplars are not implemented (yet).
 * Using a value of `None` for `registry` is not supported.
 * `multiprocessing_mode` is not supported. Gauges have a single series with one value.
 
@@ -67,3 +67,13 @@ The following limitations apply to this library
 * Only Unix is supported, and only Linux x86-64 has been tested.
 * Only the `fork` start method has been tested, though the others should work.
 * The python interpreter stats will only be from the current process.
+* There is a soft cap of around 1000 to 2000 distinct metrics for a labeled
+  metric. You can increase this cap by setting the `map_size` parameter of
+  `mpmetrics.heap.Heap` to a larger value:
+
+  ```python
+  from prometheus_client import REGISTRY
+  from mpmetrics.heap import Heap
+
+  REGISTRY.heap = Heap(map_size=128 * 1024)
+  ```

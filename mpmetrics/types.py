@@ -119,13 +119,13 @@ class _Box:
     def __init__(self, heap, *args, **kwargs):
         block = heap.malloc(self.size)
         super().__init__(block.deref(), *args, heap=heap, **kwargs)
-        self._block = block
+        self.__block = block
 
     def __getstate__(self):
-        return self._block
+        return self.__block
 
     def __setstate__(self, state):
-        self._block = state
-        super()._setstate(self._block.deref(), heap=self._block.heap)
+        self.__block = state
+        super()._setstate(self.__block.deref(), heap=self.__block.heap)
 
 Box = ObjectType('Box', lambda name, cls: type(name, (_Box, cls), {}))

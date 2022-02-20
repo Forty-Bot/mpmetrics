@@ -38,7 +38,8 @@ if __name__ == '__main__':
     generate_requests()
 ```
 
-Navigate to http://localhost:8000/metrics to view the results.
+Navigate to http://localhost:8000/metrics to view the results. For more
+examples, look in the `examples/` directory.
 
 ## Features
 

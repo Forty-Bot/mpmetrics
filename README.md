@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: LGPL-3.0-only -->
+<!-- SPDX-License-Identifier: CC-BY-SA-3.0 -->
 <!-- Copyright (C) 2022 Sean Anderson <seanga2@gmail.com> -->
 # mpmetrics
 

@@ -6,6 +6,7 @@
 import bisect
 from contextlib import contextmanager
 import itertools
+import sys
 import threading
 import time
 
@@ -85,11 +86,11 @@ class LabeledCollector(Struct):
         if labels:
             if sorted(labels) != sorted(self._labelnames):
                 raise ValueError("incorrect label names")
-            return tuple(str(labels[label]) for label in self._labelnames)
+            values = (labels[label] for label in self._labelnames)
         else:
             if len(values) != len(self._labelnames):
                 raise ValueError("incorrect label count")
-            return tuple(str(label) for label in values)
+        return tuple(sys.intern(str(label)) for label in values)
 
     def labels(self, *values, **labels):
         values = self._label_values(values, labels)

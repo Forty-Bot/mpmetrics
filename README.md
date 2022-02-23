@@ -78,3 +78,8 @@ The following limitations apply to this library
 
   REGISTRY.heap = Heap(map_size=128 * 1024)
   ```
+
+  Because of this cap, metric labels should not be user-generated in order to
+  prevent a denial-of-service attack. For example, instead of using a "path"
+  label (provided by the user), use an "endpoint" label (provided by the
+  application).

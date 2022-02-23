@@ -11,7 +11,7 @@ from flask import Flask
 from mpmetrics.flask import PrometheusMetrics
 
 app = Flask(__name__)
-PrometheusMetrics(app)
+PrometheusMetrics(app, group_by="endpoint")
 
 @app.route("/one")
 def first_route():

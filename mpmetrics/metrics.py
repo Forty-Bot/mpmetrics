@@ -115,7 +115,11 @@ class LabeledCollector(Struct):
     def collect(self):
         family = self._family()
         with self._lock:
-            metrics = self._cache = dict(self._metrics)
+            with self._shared_lock:
+                for values, metric in self._metrics.items():
+                    if values not in self._cache:
+                        self._cache[values] = metric
+            metrics = self._cache
 
         for labelvalues, metric in metrics.items():
             metric_labels = dict(zip(self._labelnames, labelvalues))

@@ -16,7 +16,7 @@ SC_LEVEL1_DCACHE_LINESIZE = 190
 if (CACHELINESIZE := os.sysconf(SC_LEVEL1_DCACHE_LINESIZE)) < 0:
     CACHELINESIZE = 64 # Assume 64-byte cache lines
 
-PAGESIZE = 64 * 1024
+PAGESIZE = 4096
 
 class Heap(Struct):
     _fields_ = {
@@ -109,15 +109,18 @@ class Heap(Struct):
 
         def deref(self):
             heap = self.heap
-            page = int(self.start / heap.map_size)
-            page_off = page * heap.map_size
+            first_page = int(self.start / heap.map_size)
+            last_page = int((self.start + self.size - 1) / heap.map_size)
+            nr_pages = last_page - first_page + 1
+            page_off = first_page * heap.map_size
             off = self.start - page_off
             with heap._lock:
-                if len(heap._maps) <= page:
-                    heap._maps.extend(itertools.repeat(None, page - len(heap._maps) + 1))
-                if not self.heap._maps[page]:
-                    heap._maps[page] = mmap.mmap(heap._fd, heap.map_size, offset=page_off)
-                map = heap._maps[page]
+                if len(heap._maps) <= last_page:
+                    heap._maps.extend(itertools.repeat(None, last_page - len(heap._maps) + 1))
+                if not self.heap._maps[first_page]:
+                    heap._maps[first_page] = mmap.mmap(heap._fd, heap.map_size * nr_pages,
+                                                       offset=page_off)
+                map = heap._maps[first_page]
 
             return memoryview(map)[off:off+self.size]
 
@@ -128,14 +131,14 @@ class Heap(Struct):
         if size <= 0:
             raise ValueError("size must be strictly positive")
         elif size > self.map_size:
-            raise ValueError("size must be less than {}".format(self.map_size))
+            size = align(size, self.map_size)
         _align_check(alignment)
 
         with self._shared_lock:
             total = align(self._base.value, self.map_size)
             self._base.value = align(self._base.value, alignment)
             if self._base.value + size >= total:
-                os.ftruncate(self._fd, total + self.map_size)
+                os.ftruncate(self._fd, align(total + size, self.map_size))
                 self._base.value = total
             start = self._base.value
             self._base.value += size

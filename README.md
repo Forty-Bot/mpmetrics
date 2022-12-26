@@ -68,18 +68,10 @@ The following limitations apply to this library
 * Only Unix is supported, and only Linux x86-64 has been tested.
 * Only the `fork` start method has been tested, though the others should work.
 * The python interpreter stats will only be from the current process.
-* There is a soft cap of around 1000 to 2000 distinct metrics for a labeled
-  metric. You can increase this cap by setting the `map_size` parameter of
-  `mpmetrics.heap.Heap` to a larger value:
 
-  ```python
-  from prometheus_client import REGISTRY
-  from mpmetrics.heap import Heap
+## Notes
 
-  REGISTRY.heap = Heap(map_size=128 * 1024)
-  ```
-
-  Because of this cap, metric labels should not be user-generated in order to
-  prevent a denial-of-service attack. For example, instead of using a "path"
-  label (provided by the user), use an "endpoint" label (provided by the
-  application).
+* Metric labels should not be user-generated in order to prevent a
+  denial-of-service attack due to memory exhaustion. For example, instead of
+  using a "path" label (provided by the user), use an "endpoint" label
+  (provided by the application).

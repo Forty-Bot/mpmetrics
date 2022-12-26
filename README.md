@@ -56,7 +56,6 @@ The following behaviors differ from `prometheus_client`:
 
 * Labeled metrics cannot be removed or cleared.
 * Info metrics are not implemented. Use `prometheus_client.Info` instead.
-* Enums (StateSets) are not implemented (yet).
 * Exemplars are not implemented (yet).
 * Using a value of `None` for `registry` is not supported.
 * `multiprocessing_mode` is not supported. Gauges have a single series with one value.

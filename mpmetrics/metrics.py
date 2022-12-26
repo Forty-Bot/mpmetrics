@@ -46,7 +46,7 @@ class Collector:
         family = self._family()
         def add_sample(suffix, value, labels={}):
             family.add_sample(self._name + suffix, labels, value)
-        self._metric._sample(add_sample)
+        self._metric._sample(add_sample, self._name)
         yield family
 
 class LabeledCollector(Struct):
@@ -73,6 +73,9 @@ class LabeledCollector(Struct):
                 raise ValueError(f"reserved label {label}")
 
             if hasattr(self._metric, 'reserved_labels') and label in self._metric.reserved_labels:
+                raise ValueError(f"reserved label {label}")
+
+            if getattr(self._metric, 'name_is_reserved', False) and label == name:
                 raise ValueError(f"reserved label {label}")
 
         self._lock = threading.Lock()
@@ -125,7 +128,7 @@ class LabeledCollector(Struct):
             metric_labels = dict(zip(self._labelnames, labelvalues))
             def add_sample(suffix, value, labels={}):
                 family.add_sample(self._name + suffix, metric_labels | labels, value)
-            metric._sample(add_sample)
+            metric._sample(add_sample, self._name)
         yield family
 
 class CollectorFactory:
@@ -193,7 +196,7 @@ class Counter(Struct):
    
         self._total.add(amount)
 
-    def _sample(self, add_sample):
+    def _sample(self, add_sample, name):
         add_sample('_total', self._total.get())
         add_sample('_created', self._created.value)
 
@@ -224,7 +227,7 @@ class Gauge(Struct):
     def set(self, amount):
         self._value.set(amount)
 
-    def _sample(self, add_sample):
+    def _sample(self, add_sample, name):
         add_sample('', self._value.get())
 
     def set_to_current_time(self):
@@ -268,7 +271,7 @@ class Summary(Struct):
         data.sum.add(amount)
         data.count.add(1)
 
-    def _sample(self, add_sample):
+    def _sample(self, add_sample, name):
         with self._lock:
             count = self._count.add(1 << 63, raise_on_overflow=False)
             hot = self._data[~count >> 63]
@@ -339,7 +342,7 @@ def _Histogram(__name__, bucket_count):
         data.sum.add(amount)
         data.count.add(1)
 
-    def _sample(self, add_sample):
+    def _sample(self, add_sample, name):
         with self._lock:
             count = self._count.add(1 << 63, raise_on_overflow=False)
             hot = self._data[~count >> 63]
@@ -396,3 +399,24 @@ class _HistogramFactory:
         return histogram(heap, thresholds=thresholds, **kwargs)
 
 Histogram = CollectorFactory(_HistogramFactory())
+
+class Enum(Struct):
+    typ = 'stateset'
+    name_is_reserved = True
+    _fields_ = {
+        '_value': AtomicUInt64,
+    }
+
+    def __init__(self, mem, states, **kwargs):
+        super().__init__(mem)
+        self._states = states
+
+    def state(self, state):
+        self._value.set(self._states.index(state))
+
+    def _sample(self, add_sample, name):
+        val = self._value.get()
+        for i, state in enumerate(self._states):
+            add_sample('', int(i == val), { name: state })
+
+Enum = CollectorFactory(Box[Enum])

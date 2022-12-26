@@ -12,7 +12,7 @@ from hypothesis import given, strategies as st
 from prometheus_client.registry import CollectorRegistry
 import pytest
 
-from mpmetrics.metrics import Counter, Gauge, Summary, Histogram
+from mpmetrics.metrics import Counter, Enum, Gauge, Summary, Histogram
 from mpmetrics.atomic import AtomicUInt64
 
 from .common import heap, parallel, parallels, ParallelLoop
@@ -312,7 +312,6 @@ class TestEnum:
     def labels(self, registry):
         return Enum('el', 'help', ['l'], states=['a', 'b', 'c'], registry=registry)
 
-    @pytest.mark.skip()
     def test_enum(self, enum, registry):
         assert get_sample_value(enum, 'e', {'e': 'a'}) == 1
         assert get_sample_value(enum, 'e', {'e': 'b'}) == 0
@@ -326,17 +325,15 @@ class TestEnum:
         with pytest.raises(ValueError):
             enum.state('d')
 
-        with pytest.raises(ValueError):
+        with pytest.raises(TypeError):
             Enum('e', 'help', registry=registry)
 
-    @pytest.mark.skip()
     def test_labels(self, labels):
         labels.labels('a').state('c')
         assert get_sample_value(labels, 'el', {'l': 'a', 'el': 'a'}) == 0
         assert get_sample_value(labels, 'el', {'l': 'a', 'el': 'b'}) == 0
         assert get_sample_value(labels, 'el', {'l': 'a', 'el': 'c'}) == 1
 
-    @pytest.mark.skip()
     def test_overlapping_labels(self, registry):
         with pytest.raises(ValueError):
             Enum('e', 'help', registry=registry, labelnames=['e'])
@@ -433,10 +430,9 @@ class TestLabelCollector:
         h = Histogram('h_seconds', 'help', [], registry=registry, unit="seconds")
         assert h._name == 'h_seconds'
 
-    @pytest.mark.skip()
     def test_no_units_for_info_enum(self, registry):
-        with pytest.raises(ValueError):
-            Info('foo', 'help', unit="x")
+        #with pytest.raises(ValueError):
+        #    Info('foo', 'help', unit="x")
 
         with pytest.raises(ValueError):
             Enum('foo', 'help', unit="x")

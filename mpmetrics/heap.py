@@ -13,7 +13,9 @@ from .types import Size_t, Struct
 from .util import align, _align_check
 
 SC_LEVEL1_DCACHE_LINESIZE = 190
-if (CACHELINESIZE := os.sysconf(SC_LEVEL1_DCACHE_LINESIZE)) < 0:
+try:
+    CACHELINESIZE = os.sysconf(SC_LEVEL1_DCACHE_LINESIZE)
+except OSError:
     CACHELINESIZE = 64 # Assume 64-byte cache lines
 
 PAGESIZE = 4096

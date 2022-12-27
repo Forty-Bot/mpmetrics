@@ -4,13 +4,13 @@
 import pickle
 
 from hypothesis import assume, given, reject, settings, strategies as st
-from hypothesis.stateful import Bundle, RuleBasedStateMachine, rule
+from hypothesis.stateful import Bundle, multiple, RuleBasedStateMachine, rule
 import pytest
 
 from mpmetrics.atomic import AtomicInt64, AtomicUInt64, AtomicDouble
 from mpmetrics.generics import ObjectType, ListType
 from mpmetrics.heap import PAGESIZE, Heap
-from mpmetrics.types import Array, Box, Dict, Double, Size_t, Struct
+from mpmetrics.types import Array, Box, Dict, Double, List, Size_t, Struct
 from _mpmetrics import Lock
 
 from .common import heap
@@ -153,3 +153,142 @@ class DictComparison(RuleBasedStateMachine):
         self.dict.clear()
 
 DictTest = DictComparison.TestCase
+
+@settings(max_examples=25)
+class ListComparison(RuleBasedStateMachine):
+    indices = Bundle('indices')
+    values = Bundle('values')
+    heap = Heap()
+
+    def __init__(self):
+        super().__init__()
+        self.list = Box[List](self.heap)
+        self.model = []
+        self.next_index = 0
+
+    @rule(target=indices)
+    def new_index(self):
+        next_index = self.next_index
+        self.next_index = next_index + 1
+        return next_index
+
+    @rule(target=values, v=st.text())
+    def value(self, v):
+        return v
+
+    @rule()
+    def len(self):
+        assert len(self.model) == len(self.list)
+
+    @rule(i=indices)
+    def getitem(self, i):
+        try:
+            model_i = self.model[i]
+        except IndexError:
+            with pytest.raises(IndexError):
+                self.list[i]
+        else:
+            assert model_i == self.list[i]
+
+    @rule(i=indices, v=values)
+    def setitem(self, i, v):
+        try:
+            self.model[i] = v
+        except IndexError:
+            with pytest.raises(IndexError):
+                self.list[i] = v
+        else:
+            self.list[i] = v
+
+    @rule(i=indices)
+    def delitem(self, i):
+        try:
+            del self.model[i]
+        except IndexError:
+            with pytest.raises(IndexError):
+                del self.list[i]
+        else:
+            del self.list[i]
+
+    @rule(v=values, start=indices, stop=indices)
+    def index(self, v, start, stop):
+        try:
+            model_i = self.model.index(v, start, stop)
+        except ValueError:
+            with pytest.raises(ValueError):
+                self.list.index(v, start, stop)
+        else:
+            assert model_i == self.list.index(v, start, stop)
+
+    @rule(v=values)
+    def count(self, v):
+        assert self.model.count(v) == self.list.count(v)
+
+    @rule()
+    def iters(self):
+        for f in (
+            iter,
+            reversed
+        ):
+            for m, d in zip(f(self.model), f(self.list)):
+                assert m == d
+
+    @rule(v=values)
+    def contains(self, v):
+        assert (v in self.model) == (v in self.list)
+
+    def extend_indices(self, l):
+        start = self.next_index
+        self.next_index += len(l)
+        return multiple(*range(start, self.next_index))
+
+    @rule(target=indices, other=st.lists(values))
+    def iadd(self, other):
+        self.model += other
+        self.list += other
+        return self.extend_indices(other)
+
+    @rule(target=indices, i=indices, v=values)
+    def insert(self, i, v):
+        self.model.insert(i, v)
+        self.list.insert(i, v)
+        return self.new_index()
+
+    @rule(target=indices, v=values)
+    def append(self, v):
+        self.model.append(v)
+        self.list.append(v)
+        return self.new_index()
+
+    @rule()
+    def reverse(self):
+        self.model.reverse()
+        self.list.reverse()
+
+    @rule(target=indices, l=st.lists(values))
+    def extend(self, l):
+        self.model.extend(l)
+        self.list.extend(l)
+        return self.extend_indices(l)
+
+    @rule(i=st.one_of(st.just(-1), indices))
+    def pop(self, i):
+        try:
+            model_pop = self.model.pop(i)
+        except IndexError:
+            with pytest.raises(IndexError):
+                self.list.pop(i)
+        else:
+            assert model_pop == self.list.pop(i)
+
+    @rule(v=values)
+    def remove(self, v):
+        try:
+            self.model.remove(v)
+        except ValueError:
+            with pytest.raises(ValueError):
+                self.list.remove(v)
+        else:
+            self.list.remove(v)
+
+ListTest = ListComparison.TestCase

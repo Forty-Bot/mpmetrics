@@ -218,6 +218,39 @@ class Sequence(Reversible, Collection):
     def count(self, value):
         return self._object.count(value)
 
+class MutableSequence(Sequence):
+    def __setitem__(self, key, value):
+        v = self._object
+        v[key] = value
+        self._object = v
+
+    def __delitem__(self, key):
+        v = self._object
+        del v[key]
+        self._object = v
+
+    def __iadd__(self, other):
+        self._object = self._object + other
+        return self._object
+
+    def insert(self, index, object):
+        self._mutate('insert', index, object)
+
+    def append(self, object):
+        self._mutate('append', object)
+
+    def reverse(self):
+        self._mutate('reverse')
+
+    def extend(self, iterable):
+        self._mutate('extend', iterable)
+
+    def pop(self, index=-1):
+        return self._mutate('pop', index)
+
+    def remove(self, value):
+        self._mutate('remove', value)
+
 class Mapping(Collection):
     def __getitem__(self, key):
         return self._object[key]
@@ -275,3 +308,9 @@ class Dict(Object, Sequence, MutableMapping):
     def __ior__(self, other):
         self._object = self._object | other
         return self
+
+class List(Object, MutableSequence):
+    _new = list
+
+    def sort(self, key=None, reverse=False):
+        self._mutate('sort', key, reverse)

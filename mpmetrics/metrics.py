@@ -25,6 +25,13 @@ def Timer(callback):
     yield
     callback(max(time.perf_counter() - now, 0))
 
+def _validate_labelname(label):
+    if not metrics_core.METRIC_LABEL_NAME_RE.match(label):
+        raise ValueError(f"invalid label {label}")
+
+    if metrics_core.RESERVED_METRIC_LABEL_NAME_RE.match(label):
+        raise ValueError(f"reserved label {label}")
+
 class Collector:
     def __init__(self, metric, name, docs, registry, heap, kwargs):
         self._name = name
@@ -66,11 +73,7 @@ class LabeledCollector(Struct):
 
         self._labelnames = tuple(labelnames)
         for label in self._labelnames:
-            if not metrics_core.METRIC_LABEL_NAME_RE.match(label):
-                raise ValueError(f"invalid label {label}")
-
-            if metrics_core.RESERVED_METRIC_LABEL_NAME_RE.match(label):
-                raise ValueError(f"reserved label {label}")
+            _validate_labelname(label)
 
             if hasattr(self._metric, 'reserved_labels') and label in self._metric.reserved_labels:
                 raise ValueError(f"reserved label {label}")

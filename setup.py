@@ -4,6 +4,15 @@
 
 import os
 import setuptools
+import setuptools.command.build_ext
+
+class build_ext(setuptools.command.build_ext.build_ext):
+    def build_extension(self, ext):
+        if self.compiler.compiler_type == 'msvc':
+            ext.extra_compile_args = ["/std:c11"]
+        else:
+            ext.extra_compile_args = ["-Wno-missing-braces"]
+        super().build_extension(ext)
 
 setuptools.setup(
     name = 'mpmetrics',
@@ -16,13 +25,11 @@ setuptools.setup(
     url = 'https://github.com/Forty-Bot/mpmetrics',
     python_requires = ">=3.9",
     packages = ['mpmetrics'],
+    cmdclass = {'build_ext': build_ext},
     ext_modules = [
         setuptools.Extension(
             '_mpmetrics',
             ['_mpmetrics.c', 'atomic.c', 'lock.c'],
-            extra_compile_args = [
-                '-Wno-missing-braces',
-            ],
         ),
     ],
     license = 'LGPL-3.0-only',

@@ -45,9 +45,12 @@ examples, look in the `examples/` directory.
 
 * Completely thread- and process-safe.
 * All operations are atomic. Metrics will never be partially updated.
-* Updating metrics is lock-free.
+* Updating metrics is lock-free on architectures with 64-bit atomics. On
+  architectures with 32-bit atomics, we transparently fall back to locking
+  implementations.
 * Exemplars are supported, but they are locking.
-* TODO: better performance?
+* Possibly better performance than `prometheus_metrics`, but probably not a big
+  contributor to overall performance.
 
 Users of `prometheus_flask_exporter` can import `mpmetrics.flask` instead.
 
@@ -60,6 +63,9 @@ The following behaviors differ from `prometheus_client`:
 * Using a value of `None` for `registry` is not supported.
 * `multiprocessing_mode` is not supported. Gauges have a single series with one value.
 
+These are unlikely to ever be addressed (except Info support) due to the
+fundamental architectural changes necessary to support multiprocessing.
+
 ## Limitations
 
 The following limitations apply to this library
@@ -67,6 +73,9 @@ The following limitations apply to this library
 * Only Unix is supported, and only Linux x86-64 has been tested.
 * Only the `fork` start method has been tested, though the others should work.
 * The python interpreter stats will only be from the current process.
+* The shared memory temporary files are not cleaned up properly. This is to
+  keep non-`fork` start methods working (as they pickle the Heap to transfer it
+  between processes
 
 ## Notes
 

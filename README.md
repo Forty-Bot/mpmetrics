@@ -46,6 +46,7 @@ examples, look in the `examples/` directory.
 * Completely thread- and process-safe.
 * All operations are atomic. Metrics will never be partially updated.
 * Updating metrics is lock-free.
+* Exemplars are supported, but they are locking.
 * TODO: better performance?
 
 Users of `prometheus_flask_exporter` can import `mpmetrics.flask` instead.
@@ -56,7 +57,6 @@ The following behaviors differ from `prometheus_client`:
 
 * Labeled metrics cannot be removed or cleared.
 * Info metrics are not implemented. Use `prometheus_client.Info` instead.
-* Exemplars are not implemented (yet).
 * Using a value of `None` for `registry` is not supported.
 * `multiprocessing_mode` is not supported. Gauges have a single series with one value.
 

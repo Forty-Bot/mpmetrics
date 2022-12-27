@@ -309,6 +309,9 @@ class Dict(Object, Sequence, MutableMapping):
         self._object = self._object | other
         return self
 
+    def copy(self):
+        return self._object
+
 class List(Object, MutableSequence):
     _new = list
 

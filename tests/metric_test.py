@@ -12,10 +12,33 @@ from hypothesis import given, strategies as st
 from prometheus_client.registry import CollectorRegistry
 import pytest
 
-from mpmetrics.metrics import Counter, Enum, Gauge, Summary, Histogram
+from mpmetrics.metrics import Counter, Enum, Gauge, Summary, Histogram, _validate_exemplar
 from mpmetrics.atomic import AtomicUInt64
 
 from .common import heap, parallel, parallels, ParallelLoop
+
+def test_exemplar_validation():
+    # 128 characters should not raise, even using characters larger than 1 byte.
+    _validate_exemplar({
+        'abcdefghijklmnopqrstuvwxyz': '26+16 characters',
+        'x123456': '7+15 characters',
+        'zyxwvutsrqponmlkjihgfedcba': '26+16 characters',
+        'unicode': '7+15 chars    平',
+    })
+
+    # 129 characters in total should fail.
+    with pytest.raises(ValueError):
+        _validate_exemplar({
+            'abcdefghijklmnopqrstuvwxyz': '26+16 characters',
+            'x1234567': '8+15 characters',
+            'zyxwvutsrqponmlkjihgfedcba': '26+16 characters',
+            'y123456': '7+15 characters',
+        })
+
+    with pytest.raises(ValueError):
+        _validate_exemplar({':o)': 'smile'})
+    with pytest.raises(ValueError):
+        _validate_exemplar({'1': 'number'})
 
 @pytest.fixture(scope='session')
 def registry(heap):
@@ -32,6 +55,13 @@ def get_sample_value(collector, name, labels={}):
                 return s.value
     return None
 
+def get_sample_exemplar(collector, name, labels={}):
+    for metric in collector.collect():
+        for s in metric.samples:
+            if s.name == name and s.labels == labels:
+                return s.exemplar
+    return None
+
 class TestCounter:
     @pytest.fixture
     def counter(self, registry):
@@ -40,10 +70,16 @@ class TestCounter:
     def test_increment(self, counter):
         assert get_sample_value(counter, 'c_created')
         assert get_sample_value(counter, 'c_total') == 0
+        assert get_sample_exemplar(counter, 'c_total') is None
         counter.inc()
         assert get_sample_value(counter, 'c_total') == 1
-        counter.inc(7)
+        counter.inc(7, {'foo': 'bar'})
         assert get_sample_value(counter, 'c_total') == 8
+        exemplar = get_sample_exemplar(counter, 'c_total')
+        assert exemplar.labels == {'foo': 'bar'}
+        assert exemplar.value == 7
+        assert exemplar.timestamp
+
         with pytest.raises(OverflowError):
             counter.inc(AtomicUInt64.max)
 
@@ -187,22 +223,29 @@ class TestHistogram:
         assert get_sample_value(histogram, 'h_bucket', {'le': 'inf'}) == 0
         assert get_sample_value(histogram, 'h_count') == 0
         assert get_sample_value(histogram, 'h_sum') == 0
+        for le in ('1.0', '2.5', '5.0', 'inf'):
+            assert get_sample_exemplar(histogram, 'h_bucket', {'le': le}) is None
 
-        histogram.observe(2)
+        histogram.observe(2, {'foo': 'bar'})
         assert get_sample_value(histogram, 'h_bucket', {'le': '1.0'}) == 0
         assert get_sample_value(histogram, 'h_bucket', {'le': '2.5'}) == 1
         assert get_sample_value(histogram, 'h_bucket', {'le': '5.0'}) == 1
         assert get_sample_value(histogram, 'h_bucket', {'le': 'inf'}) == 1
         assert get_sample_value(histogram, 'h_count') == 1
         assert get_sample_value(histogram, 'h_sum') == 2
+        exemplar = get_sample_exemplar(histogram, 'h_bucket', {'le': '2.5'})
+        assert exemplar.labels == {'foo': 'bar'}
+        assert exemplar.value == 2
+        assert exemplar.timestamp
 
-        histogram.observe(2.5)
+        histogram.observe(2.5, {'foo': 'baz'})
         assert get_sample_value(histogram, 'h_bucket', {'le': '1.0'}) == 0
         assert get_sample_value(histogram, 'h_bucket', {'le': '2.5'}) == 2
         assert get_sample_value(histogram, 'h_bucket', {'le': '5.0'}) == 2
         assert get_sample_value(histogram, 'h_bucket', {'le': 'inf'}) == 2
         assert get_sample_value(histogram, 'h_count') == 2
         assert get_sample_value(histogram, 'h_sum') == 4.5
+        assert get_sample_exemplar(histogram, 'h_bucket', {'le': '2.5'}).labels['foo'] == 'baz'
 
         histogram.observe(float("inf"))
         assert get_sample_value(histogram, 'h_bucket', {'le': '1.0'}) == 0

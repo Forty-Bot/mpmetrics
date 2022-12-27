@@ -10,13 +10,13 @@ import sys
 import threading
 import time
 
-from prometheus_client import metrics_core, registry
+from prometheus_client import metrics, metrics_core, registry, samples
 
 import _mpmetrics
 from .atomic import AtomicUInt64, AtomicDouble
 from .generics import IntType
 from .heap import Heap
-from .types import Box, Dict, Double, Array, Struct
+from .types import Box, Dict, Double, Array, List, Struct, UInt64
 from .util import classproperty, genmask
 
 @contextmanager
@@ -31,6 +31,16 @@ def _validate_labelname(label):
 
     if metrics_core.RESERVED_METRIC_LABEL_NAME_RE.match(label):
         raise ValueError(f"reserved label {label}")
+
+def _validate_exemplar(exemplar):
+    code_points = 0
+    for k, v in exemplar.items():
+        _validate_labelname(k)
+        code_points += len(k)
+        code_points += len(v)
+
+    if code_points > 128:
+        raise ValueError("exemplar too long ({code_points} code points)")
 
 class Collector:
     def __init__(self, metric, name, docs, registry, heap, kwargs):
@@ -51,8 +61,8 @@ class Collector:
 
     def collect(self):
         family = self._family()
-        def add_sample(suffix, value, labels={}):
-            family.add_sample(self._name + suffix, labels, value)
+        def add_sample(suffix, value, labels={}, exemplar=None):
+            family.add_sample(self._name + suffix, labels, value, exemplar=exemplar)
         self._metric._sample(add_sample, self._name)
         yield family
 
@@ -129,8 +139,9 @@ class LabeledCollector(Struct):
 
         for labelvalues, metric in metrics.items():
             metric_labels = dict(zip(self._labelnames, labelvalues))
-            def add_sample(suffix, value, labels={}):
-                family.add_sample(self._name + suffix, metric_labels | labels, value)
+            def add_sample(suffix, value, labels={}, exemplar=None):
+                family.add_sample(self._name + suffix, metric_labels | labels, value,
+                                  exemplar=exemplar)
             metric._sample(add_sample, self._name)
         yield family
 
@@ -182,12 +193,16 @@ class CollectorFactory:
 class Counter(Struct):
     typ = 'counter'
     _fields_ = {
+        '_lock': _mpmetrics.Lock,
         '_total': AtomicUInt64,
         '_created': Double,
+        '_exemplar_amount': UInt64,
+        '_exemplar_timestamp': Double,
+        '_exemplar_labels': Dict,
     }
 
-    def __init__(self, mem, **kwargs):
-        super().__init__(mem)
+    def __init__(self, mem, heap, **kwargs):
+        super().__init__(mem, heap)
         self._created.value = time.time()
 
     def inc(self, amount=1, exemplar=None):
@@ -195,12 +210,24 @@ class Counter(Struct):
             raise ValueError("amount must be positive")
 
         if exemplar is not None:
-            raise NotImplementedError("exemplars are not yet supported")
+            _validate_exemplar(exemplar)
    
         self._total.add(amount)
+        if exemplar is not None:
+            with self._lock:
+                self._exemplar_amount.value = amount
+                self._exemplar_timestamp.value = time.time()
+                self._exemplar_labels.clear()
+                self._exemplar_labels |= exemplar
 
     def _sample(self, add_sample, name):
-        add_sample('_total', self._total.get())
+        with self._lock:
+            timestamp = self._exemplar_timestamp.value
+            if timestamp:
+                amount = self._exemplar_amount.value
+                labels = self._exemplar_labels.copy()
+        add_sample('_total', self._total.get(),
+                   exemplar=samples.Exemplar(labels, amount, timestamp) if timestamp else None)
         add_sample('_created', self._created.value)
 
     @contextmanager
@@ -320,14 +347,16 @@ def _Histogram(__name__, bucket_count):
         '_data': Array[_HistogramData[bucket_count], 2],
         '_count': AtomicUInt64,
         '_created': Double,
+        '_exemplars': List,
     }
 
-    def __init__(self, mem, thresholds, **kwargs):
-        Struct.__init__(self, mem)
+    def __init__(self, mem, thresholds, heap, **kwargs):
+        Struct.__init__(self, mem, heap)
         assert len(thresholds) == bucket_count
         self.thresholds = thresholds
         for threshold, initial in zip(self._thresholds, thresholds):
             threshold.value = initial
+            self._exemplars.append(None)
         self._created.value = time.time()
 
     def _setstate(self, mem, heap):
@@ -336,7 +365,7 @@ def _Histogram(__name__, bucket_count):
 
     def observe(self, amount, exemplar=None):
         if exemplar is not None:
-            raise NotImplementedError("exemplars are not yet supported")
+            _validate_exemplar(exemplar)
 
         i = bisect.bisect_left(self.thresholds, amount)
 
@@ -344,6 +373,9 @@ def _Histogram(__name__, bucket_count):
         data.buckets[i].add(1)
         data.sum.add(amount)
         data.count.add(1)
+        if exemplar:
+            with self._lock:
+                self._exemplars[i] = (exemplar, amount, time.time())
 
     def _sample(self, add_sample, name):
         with self._lock:
@@ -357,6 +389,7 @@ def _Histogram(__name__, bucket_count):
 
             buckets = [bucket.get() for bucket in cold.buckets]
             sum = cold.sum.get()
+            exemplars = list(self._exemplars)
 
             for i, bucket in enumerate(buckets):
                 hot.buckets[i].add(bucket)
@@ -368,8 +401,9 @@ def _Histogram(__name__, bucket_count):
             cold.sum.set(0)
             cold.count.set(0)
 
-        for val, le in zip(itertools.accumulate(buckets), self.thresholds):
-            add_sample('_bucket', val, { 'le': str(le) })
+        for val, le, exemplar in zip(itertools.accumulate(buckets), self.thresholds, exemplars):
+            add_sample('_bucket', val, { 'le': str(le) },
+                       samples.Exemplar(*exemplar) if exemplar else None)
         add_sample('_sum', sum)
         add_sample('_count', count)
         add_sample('_created', self._created.value)

@@ -2,6 +2,7 @@
 # Copyright (C) 2022 Sean Anderson <seanga2@gmail.com>
 
 from copy import copy
+import errno
 import time
 
 import pytest
@@ -33,8 +34,12 @@ def test_basics(heap):
     assert l1.acquire(block=False)
     l1.release()
 
-    assert l1.acquire(timeout=1)
-    l1.release()
+    try:
+        assert l1.acquire(timeout=1)
+        l1.release()
+    except OSError as e:
+        if e.errno != errno.ENOTSUP:
+            raise
 
 def test_acquire(heap, parallel):
     def hold(l, b):
@@ -49,10 +54,17 @@ def test_acquire(heap, parallel):
 
     try:
         b.wait()
+
         assert not l.acquire(block=False)
         now = time.time()
-        assert not l.acquire(timeout=0.001)
-        assert now + 0.001 <= time.time()
+        try:
+            assert not l.acquire(timeout=0.001)
+        except OSError as e:
+            if e.errno != errno.ENOTSUP:
+                raise
+        else:
+            assert now + 0.001 <= time.time()
+
         b.wait()
         with l:
             pass

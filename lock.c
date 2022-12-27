@@ -50,7 +50,11 @@ static PyObject *Lock_do_acquire(LockObject *self, bool block,
 	if (!block)
 		err = pthread_mutex_trylock(self->shm.buf);
 	else if (deadline)
+#if defined(_POSIX_TIMEOUTS) && (_POSIX_TIMEOUTS >= 200112L)
 		err = pthread_mutex_timedlock(self->shm.buf, deadline);
+#else
+		err = ENOTSUP;
+#endif
 	else
 		err = pthread_mutex_lock(self->shm.buf);
 	Py_END_ALLOW_THREADS
@@ -203,7 +207,9 @@ int LockType_Add(PyObject *m)
 	if (err)
 		goto error;
 
+#if defined(_POSIX_C_SOURCE) && (_POSIX_C_SOURCE >= 200809L)
 	err = pthread_mutexattr_setrobust(&mutexattr, PTHREAD_MUTEX_ROBUST);
+#endif
 	if (err) {
 error:
 		errno = err;

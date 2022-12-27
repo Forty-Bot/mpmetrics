@@ -3,6 +3,7 @@
 
 import ctypes
 import pickle
+import sys
 
 from .generics import IntType, ObjectType, ProductType
 from .util import align, classproperty
@@ -131,7 +132,7 @@ class _Box:
 
 Box = ObjectType('Box', lambda name, cls: type(name, (_Box, cls), {}))
 
-class Dict(Struct):
+class Object(Struct):
     _fields_ = {
         '_start': Size_t,
         '_size': Size_t,
@@ -159,77 +160,118 @@ class Dict(Struct):
         self._size.value = block.size
 
     @property
-    def _dict(self):
+    def _object(self):
         if self._len.value:
             return pickle.loads(self._block.deref()[:self._len.value])
-        return {}
+        return self._new()
 
-    @_dict.setter
-    def _dict(self, d):
-        ds = pickle.dumps(d)
-        new_length = len(ds)
+    @_object.setter
+    def _object(self, v):
+        vs = pickle.dumps(v)
+        new_length = len(vs)
         self._len.value = new_length
         if self._len.value > self._size.value:
             if self._size.value:
                 self._block.free()
             # Scale by a lot to minimize allocations; Heap doesn't free backing memory
             self._block = self._heap.malloc(4 * new_length)
-        self._block.deref()[:self._len.value] = ds
+        self._block.deref()[:self._len.value] = vs
+
+    def _mutate(self, method, *args, **kwargs):
+        v = self._object
+        result = getattr(v, method)(*args, **kwargs)
+        self._object = v
+        return result
 
     def __repr__(self):
-        return f"{self.__class__.__qualname__}({repr(self._dict)})"
+        return f"{self.__class__.__qualname__}({repr(self._object)})"
 
+class Sized:
     def __len__(self):
-        return len(self._dict)
+        return len(self._object)
+
+class Iterable:
+    def __iter__(self):
+        return iter(self._object)
+
+class Container:
+    def __contains__(self, item):
+        return item in self._object
+
+class Collection(Sized, Iterable, Container):
+    pass
+
+class Reversible:
+    def __reversed__(self):
+        return reversed(self._object)
+
+class Sequence(Reversible, Collection):
+    def __len__(self):
+        return len(self._object)
 
     def __getitem__(self, key):
-        return self._dict[key]
+        return self._object[key]
 
+    def index(self, value, start=0, stop=sys.maxsize):
+        return self._object.index(value, start, stop)
+
+    def count(self, value):
+        return self._object.count(value)
+
+class Mapping(Collection):
+    def __getitem__(self, key):
+        return self._object[key]
+
+    def __eq__(self, other):
+        return self._object == other
+
+    def __neq__(self, other):
+        return self._object != other
+
+    def get(self, key, default=None):
+        return self._object.get(key, default)
+
+    def items(self):
+        return self._object.items()
+
+    def keys(self):
+        return self._object.keys()
+
+    def values(self):
+        return self._object.values()
+
+class MutableMapping(Mapping):
     def __setitem__(self, key, value):
-        d = self._dict
-        d[key] = value
-        self._dict = d
+        v = self._object
+        v[key] = value
+        self._object = v
 
     def __delitem__(self, key):
-        d = self._dict
-        del d[key]
-        self._dict = d
-
-    def __iter__(self):
-        return iter(self._dict)
-
-    def __reversed__(self):
-        return reversed(self._dict)
-
-    def __contains__(self, item):
-        return item in self._dict
-
-    def __or__(self, other):
-        return self._dict | other
-
-    def __ior__(self, other):
-        self._dict = self._dict | other
-        return self
+        v = self._object
+        del v[key]
+        self._object = v
 
     def clear(self):
         self._len.value = 0
 
-    def copy(self):
-        return self._dict
+    def pop(self, key, default=None):
+        return self._mutate('pop', key, default)
 
-    def get(self, key, default=None):
-        return self._dict.get(key, default)
+    def popitem(self):
+        return self._mutate('popitem')
 
-    def items(self):
-        return self._dict.items()
-
-    def keys(self):
-        return self._dict.keys()
-
-    def values(self):
-        return self._dict.values()
+    def setdefault(self, key, default=None):
+        return self._mutate('setdefault', key, default)
 
     def update(self, other=()):
-        d = self._dict
-        d.update(other)
-        self._dict = d
+        return self._mutate('update', other)
+
+class Dict(Object, Sequence, MutableMapping):
+    _new = dict
+
+    def __or__(self, other):
+        return self._object | other
+
+    def __ior__(self, other):
+        self._object = self._object | other
+        return self

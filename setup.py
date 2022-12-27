@@ -39,7 +39,10 @@ setuptools.setup(
             'prometheus_flask_exporter',
         ],
         "tests": [
+            'flask',
+            'freezegun',
             'hypothesis',
+            'prometheus_flask_exporter',
             'pytest',
         ],
     },

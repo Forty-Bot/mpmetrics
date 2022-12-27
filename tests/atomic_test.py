@@ -23,7 +23,7 @@ def integer(request):
 @given(st.integers())
 def test_iset(heap, integer, x):
     a = integer(heap)
-    if x not in range(a.min, a.max):
+    if x not in range(a.min, a.max + 1):
         ctx = pytest.raises(OverflowError)
     else:
         ctx = nullcontext()
@@ -37,7 +37,7 @@ def integers():
 def test_iadd(heap, x, y):
     a = Box[AtomicInt64](heap)
     a.set(x)
-    if x + y not in range(a.min, a.max):
+    if x + y not in range(a.min, a.max + 1):
         with pytest.raises(OverflowError):
             a.add(y)
     else:
@@ -51,7 +51,7 @@ def unsigned_integers():
 def test_uadd(heap, x, y):
     a = Box[AtomicUInt64](heap)
     a.set(x)
-    if x + y not in range(a.min, a.max):
+    if x + y not in range(a.min, a.max + 1):
         with pytest.raises(OverflowError):
             a.add(y)
     else:

@@ -51,7 +51,13 @@ class Collector:
         registry.register(self)
 
     def __getattr__(self, name):
-        return getattr(self.__dict__['_metric'], name)
+        if name == '__getstate__':
+            raise AttributeError
+
+        try:
+            return getattr(self.__dict__['_metric'], name)
+        except KeyError:
+            raise AttributeError
 
     def _family(self):
         return metrics_core.Metric(self._name, self._docs, self._metric.typ)

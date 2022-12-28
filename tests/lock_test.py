@@ -41,12 +41,12 @@ def test_basics(heap):
         if e.errno != errno.ENOTSUP:
             raise
 
-def test_acquire(heap, parallel):
-    def hold(l, b):
-        with l:
-            b.wait()
-            b.wait()
+def hold(l, b):
+    with l:
+        b.wait()
+        b.wait()
 
+def test_acquire(heap, parallel):
     l = Box[Lock](heap)
     b = parallel.barrier(2)
     p = parallel.spawn(target=hold, args=(l, b))

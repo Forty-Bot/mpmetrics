@@ -73,38 +73,38 @@ def test_dadd(heap, x, y):
     else:
         assert a.get() == x + y
 
+class OrderingTest(ParallelLoop):
+    def __init__(self, heap, atomic, parallel):
+        super().__init__(parallel)
+        self.x = atomic(heap)
+        self.y = atomic(heap)
+
+    def loop(self, n):
+        self.x.add(1)
+        self.y.add(1)
+
+    def check(self):
+        y = self.y.get()
+        x = self.x.get()
+        assert x >= y
+
+    def final(self):
+        assert self.x.get() == self.total
+        assert self.y.get() == self.total
+
 def test_ordering(heap, atomic, parallel):
-    class Test(ParallelLoop):
-        def __init__(self):
-            super().__init__(parallel)
-            self.x = atomic(heap)
-            self.y = atomic(heap)
+    OrderingTest(heap, atomic, parallel).run()
 
-        def loop(self, n):
-            self.x.add(1)
-            self.y.add(1)
+class RacyTest(ParallelLoop):
+    def __init__(self, heap, parallel):
+        super().__init__(parallel)
+        self.value = Box[Double](heap)
 
-        def check(self):
-            y = self.y.get()
-            x = self.x.get()
-            assert x >= y
+    def loop(self, n):
+        self.value.value += 1
 
-        def final(self):
-            assert self.x.get() == self.total
-            assert self.y.get() == self.total
+    def final(self):
+        assert self.value.value != self.total
 
-    Test().run()
-
-def test_racy(heap):
-    class Test(ParallelLoop):
-        def __init__(self):
-            super().__init__(parallels['process'])
-            self.value = Box[Double](heap)
-
-        def loop(self, n):
-            self.value.value += 1
-
-        def final(self):
-            assert self.value.value != self.total
-
-    Test().run()
+def test_racy(heap, parallel):
+    RacyTest(heap, parallel).run()

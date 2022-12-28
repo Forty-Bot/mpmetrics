@@ -63,25 +63,26 @@ def test_malloc(alloc):
             prev = blocks[i - 1]
             assert prev.start + prev.size <= blocks[i].start
 
+def setone(block):
+    block.deref()[0] = 1
+
 def test_prefork(parallel):
-    mem = Heap().malloc(1).deref()
+    block = Heap().malloc(1)
+    mem = block.deref()
     assert mem[0] == 0
 
-    def setone(mem):
-        mem[0] = 1
-
-    p = parallel.spawn(target=setone, args=(mem,))
+    p = parallel.spawn(target=setone, args=(block,))
     p.start()
     p.join()
     assert mem[0] == 1
 
-def test_postfork(parallel):
-    def setone(q):
-        mem = q.get().deref()
-        mem[0] = 2
+def settwo(q):
+    mem = q.get().deref()
+    mem[0] = 2
 
+def test_postfork(parallel):
     q = parallel.queue()
-    p = parallel.spawn(target=setone, args=(q,))
+    p = parallel.spawn(target=settwo, args=(q,))
     p.start()
 
     h = Heap()

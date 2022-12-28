@@ -107,19 +107,19 @@ class TestCounter:
 
         assert get_sample_value(counter, 'c_total') == 2
 
+    class ConcurrentTest(ParallelLoop):
+        def __init__(self, counter, parallel):
+            super().__init__(parallel)
+            self.counter = counter
+
+        def loop(self, n):
+            self.counter.inc()
+
+        def final(self):
+            assert get_sample_value(self.counter, 'c_total') == self.total
+
     def test_concurrent(self, counter, parallel):
-        class Test(ParallelLoop):
-            def __init__(self):
-                super().__init__(parallel)
-                self.counter = counter
-
-            def loop(self, n):
-                self.counter.inc()
-
-            def final(self):
-                assert get_sample_value(self.counter, 'c_total') == self.total 
-
-        Test().run()
+        self.ConcurrentTest(counter, parallel).run()
 
 class TestGauge:
     @pytest.fixture
@@ -150,19 +150,19 @@ class TestGauge:
             pass
         assert get_sample_value(gauge, 'g') == 0
 
+    class ConcurrentTest(ParallelLoop):
+        def __init__(self, gauge, parallel):
+            super().__init__(parallel)
+            self.gauge = gauge
+
+        def loop(self, n):
+            self.gauge.inc(1)
+
+        def final(self):
+            assert get_sample_value(self.gauge, 'g') == self.total
+
     def test_concurrent(self, gauge, parallel):
-        class Test(ParallelLoop):
-            def __init__(self):
-                super().__init__(parallel)
-                self.gauge = gauge
-
-            def loop(self, n):
-                self.gauge.inc(1)
-
-            def final(self):
-                assert get_sample_value(self.gauge, 'g') == self.total
-            
-        Test().run()
+        self.ConcurrentTest(gauge, parallel).run()
 
 class TestSummary:
     @pytest.fixture
@@ -177,34 +177,34 @@ class TestSummary:
         assert get_sample_value(summary, 's_count') == 1
         assert get_sample_value(summary, 's_sum') == 10
 
+    class ConcurrentTest(ParallelLoop):
+        def __init__(self, summary, parallel):
+            super().__init__(parallel)
+            self.summary = summary
+
+        def get_samples(self):
+            metric = next(self.summary.collect())
+            for s in metric.samples:
+                if s.name.endswith('s_count'):
+                    count = s.value
+                elif s.name.endswith('s_sum'):
+                    sum = s.value
+            return count, sum
+
+        def loop(self, n):
+            self.summary.observe(1)
+
+        def check(self):
+            count, sum = self.get_samples()
+            assert count == sum
+
+        def final(self):
+            count, sum = self.get_samples()
+            assert count == self.total
+            assert sum == self.total
+
     def test_concurrent(self, summary, parallel):
-        class Test(ParallelLoop):
-            def __init__(self):
-                super().__init__(parallel)
-                self.summary = summary
-
-            def get_samples(self):
-                metric = next(self.summary.collect())
-                for s in metric.samples:
-                    if s.name.endswith('s_count'):
-                        count = s.value
-                    elif s.name.endswith('s_sum'):
-                        sum = s.value
-                return count, sum
-
-            def loop(self, n):
-                self.summary.observe(1)
-
-            def check(self):
-                count, sum = self.get_samples()
-                assert count == sum
-
-            def final(self):
-                count, sum = self.get_samples()
-                assert count == self.total
-                assert sum == self.total
-            
-        Test().run()
+        self.ConcurrentTest(summary, parallel).run()
 
 class TestHistogram:
     @pytest.fixture
@@ -292,44 +292,47 @@ class TestHistogram:
         assert get_sample_value(labels, 'h_count', {'l': 'a'}) == 1
         assert get_sample_value(labels, 'h_sum', {'l': 'a'}) in (2, None)
 
+    def test_pickle(self, histogram):
+        pickle.loads(pickle.dumps(histogram))
+
+    class ConcurrentTest(ParallelLoop):
+        def __init__(self, histogram, parallel):
+            super().__init__(parallel)
+            self.histogram = histogram
+
+        def get_sample(self):
+            metric = next(self.histogram.collect())
+            buckets = []
+            for s in metric.samples:
+                if s.name.endswith('h_bucket'):
+                    buckets.append(s.value)
+                elif s.name.endswith('h_sum'):
+                    sum = s.value
+                elif s.name.endswith('h_count'):
+                    count = s.value
+            return buckets, sum, count
+
+        def loop(self, n):
+            self.histogram.observe(random.choice(self.histogram.thresholds[:-1]))
+
+        def check(self):
+            buckets, sum, count = self.get_sample()
+            prev = 0
+            bucket_sum = 0
+            for bucket, threshold in zip(buckets, self.histogram.thresholds):
+                if threshold == float('inf'):
+                    break
+                bucket_sum += (bucket - prev) * threshold
+                prev = bucket
+            assert sum == pytest.approx(bucket_sum)
+            assert buckets[-1] == count
+
+        def final(self):
+            buckets, sum, count = self.get_sample()
+            assert buckets[-1] == count == self.total
+
     def test_concurrent(self, histogram, parallel):
-        class Test(ParallelLoop):
-            def __init__(self, parallel):
-                super().__init__(parallel)
-                self.histogram = histogram
-
-            def get_sample(self):
-                metric = next(self.histogram.collect())
-                buckets = []
-                for s in metric.samples:
-                    if s.name.endswith('h_bucket'):
-                        buckets.append(s.value)
-                    elif s.name.endswith('h_sum'):
-                        sum = s.value
-                    elif s.name.endswith('h_count'):
-                        count = s.value
-                return buckets, sum, count
-
-            def loop(self, n):
-                self.histogram.observe(random.choice(self.histogram.thresholds[:-1]))
-
-            def check(self):
-                buckets, sum, count = self.get_sample()
-                prev = 0
-                bucket_sum = 0
-                for bucket, threshold in zip(buckets, self.histogram.thresholds):
-                    if threshold == float('inf'):
-                        break
-                    bucket_sum += (bucket - prev) * threshold
-                    prev = bucket
-                assert sum == pytest.approx(bucket_sum)
-                assert buckets[-1] == count
-
-            def final(self):
-                buckets, sum, count = self.get_sample()
-                assert buckets[-1] == count == self.total
-
-        Test().run()
+        self.ConcurrentTest(histogram, parallel).run()
 
 @pytest.mark.parametrize(('cls', 'name'), (
     (Gauge, 'm'),
@@ -489,17 +492,17 @@ class TestLabelCollector:
         c = Counter('b_total', 'help', unit="total", labelnames=['l'], registry=registry)
         assert c._name == 'b_total'
 
+    class ConcurrentTest(ParallelLoop):
+        def __init__(self, counter, parallel):
+            super().__init__(parallel)
+            self.counter = counter
+
+        def loop(self, n):
+            self.counter.labels(n % self.n).inc()
+
+        def final(self):
+            for i in range(self.n):
+                assert get_sample_value(self.counter, 'c_total', {'l': str(i)}) == self.count
+
     def test_concurrent(self, counter, parallel):
-        class Test(ParallelLoop):
-            def __init__(self):
-                super().__init__(parallel)
-                self.counter = counter
-
-            def loop(self, n):
-                self.counter.labels(n % self.n).inc()
-
-            def final(self):
-                for i in range(self.n):
-                    assert get_sample_value(self.counter, 'c_total', {'l': str(i)}) == self.count
-
-        Test().run()
+        self.ConcurrentTest(counter, parallel).run()

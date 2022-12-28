@@ -132,7 +132,7 @@ static PyMethodDef METHODS[] = {
 		.ml_flags = METH_VARARGS | METH_KEYWORDS,
 		.ml_doc = "Add a number to the value",
 	},
-	{ /* Sentinel */ },
+	{ 0 },
 };
 
 #define TYPE paste(NAME, Type)

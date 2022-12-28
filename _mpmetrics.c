@@ -72,7 +72,7 @@ static PyMethodDef Buffer_methods[] = {
 		.ml_meth = (PyCFunction)Buffer_setstate,
 		.ml_flags = METH_VARARGS | METH_KEYWORDS,
 	},
-	{ /* Sentinel */ },
+	{ 0 },
 };
 
 

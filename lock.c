@@ -177,7 +177,7 @@ static PyMethodDef Lock_methods[] = {
 		.ml_flags = METH_FASTCALL,
 		.ml_doc = "Exit a critical section",
 	},
-	{ /* Sentinel */ },
+	{ 0 },
 };
 
 static PyTypeObject LockType = {

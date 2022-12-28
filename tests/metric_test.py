@@ -311,20 +311,25 @@ class TestHistogram:
                 return buckets, sum, count
 
             def loop(self, n):
-                self.histogram.observe(random.sample(self.histogram.thresholds, 1))
+                self.histogram.observe(random.choice(self.histogram.thresholds[:-1]))
 
             def check(self):
                 buckets, sum, count = self.get_sample()
                 prev = 0
+                bucket_sum = 0
                 for bucket, threshold in zip(buckets, self.histogram.thresholds):
+                    if threshold == float('inf'):
+                        break
                     bucket_sum += (bucket - prev) * threshold
                     prev = bucket
-                assert sum == bucket_sum
+                assert sum == pytest.approx(bucket_sum)
                 assert buckets[-1] == count
 
             def final(self):
                 buckets, sum, count = self.get_sample()
                 assert buckets[-1] == count == self.total
+
+        Test().run()
 
 @pytest.mark.parametrize(('cls', 'name'), (
     (Gauge, 'm'),

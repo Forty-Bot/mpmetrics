@@ -292,9 +292,6 @@ class TestHistogram:
         assert get_sample_value(labels, 'h_count', {'l': 'a'}) == 1
         assert get_sample_value(labels, 'h_sum', {'l': 'a'}) in (2, None)
 
-    def test_pickle(self, histogram):
-        pickle.loads(pickle.dumps(histogram))
-
     class ConcurrentTest(ParallelLoop):
         def __init__(self, histogram, parallel):
             super().__init__(parallel)

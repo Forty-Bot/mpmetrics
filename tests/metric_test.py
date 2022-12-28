@@ -389,6 +389,21 @@ class TestEnum:
         with pytest.raises(ValueError):
             Enum('e', 'help', registry=registry, labelnames=['e'])
 
+    class ConcurrentTest(ParallelLoop):
+        def __init__(self, enum, parallel):
+            super().__init__(parallel)
+            self.enum = enum
+
+        def loop(self, n):
+            self.enum.state(['a', 'b', 'c'][n % 3])
+
+        def final(self):
+            for metric in self.enum.collect():
+                assert sum(sample.value for sample in metric.samples) == 1
+
+    def test_concurrent(self, enum, parallel):
+        self.ConcurrentTest(enum, parallel).run()
+
 class TestLabelCollector:
     @pytest.fixture
     def counter(self, registry):

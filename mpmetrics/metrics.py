@@ -474,6 +474,13 @@ class Enum(Struct):
         super().__init__(mem)
         self._states = states
 
+    def _getstate(self):
+        return { 'states': self._states }
+
+    def _setstate(self, mem, heap, states):
+        super()._setstate(mem, heap)
+        self._states = states
+
     def state(self, state):
         self._value.set(self._states.index(state))
 

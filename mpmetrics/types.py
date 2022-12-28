@@ -17,7 +17,7 @@ def _wrap_ctype(__name__, ctype):
         self._value = ctype.from_buffer(mem)
         self._value.value = 0
 
-    def _setstate(self, mem, heap=None):
+    def _setstate(self, mem, heap=None, **kwargs):
         self._mem = mem
         self._value = ctype.from_buffer(mem)
 
@@ -65,7 +65,7 @@ class Struct:
         for name, field, off in self._fields_iter():
             setattr(self, name, field(mem[off:off + field.size], heap=heap))
 
-    def _setstate(self, mem, heap=None):
+    def _setstate(self, mem, heap=None, **kwargs):
         self._mem = mem
         for name, field, off in self._fields_iter():
             field = field.__new__(field)
@@ -86,7 +86,7 @@ def Array(__name__, cls, n):
             off = i * member_size
             self._vals.append(cls(self._mem[off:off + member_size], heap=heap))
 
-    def _setstate(self, mem, heap=None):
+    def _setstate(self, mem, heap=None, **kwargs):
         self._mem = mem
         self._vals = []
         for i in range(n):
@@ -124,11 +124,15 @@ class _Box:
         self.__block = block
 
     def __getstate__(self):
-        return self.__block
+        try:
+            kwargs = super()._getstate()
+        except AttributeError:
+            kwargs = {}
+        return self.__block, kwargs
 
     def __setstate__(self, state):
-        self.__block = state
-        super()._setstate(self.__block.deref(), heap=self.__block.heap)
+        self.__block, kwargs = state
+        super()._setstate(self.__block.deref(), heap=self.__block.heap, **kwargs)
 
 Box = ObjectType('Box', lambda name, cls: type(name, (_Box, cls), {}))
 

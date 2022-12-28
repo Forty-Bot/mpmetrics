@@ -101,6 +101,26 @@ class LabeledCollector(Struct):
         self._cache = dict()
         registry.register(self)
 
+    def _getstate(self):
+        return {
+            'metric': self._metric,
+            'name': self._name,
+            'docs': self._docs,
+            'kwargs': self._kwargs,
+            'labelnames': self._labelnames,
+        }
+
+    def _setstate(self, mem, metric, name, docs, kwargs, labelnames, heap, **others):
+        super()._setstate(mem, heap)
+        self._metric = metric
+        self._name = name
+        self._docs = docs
+        self._kwargs = kwargs
+        self._heap = heap
+        self._labelnames = labelnames
+        self._lock = threading.Lock()
+        self._cache = dict()
+
     def _label_values(self, values, labels):
         if values and labels:
             raise ValueError("can't pass both *args and **kwargs")

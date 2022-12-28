@@ -4,6 +4,7 @@
 from collections import namedtuple
 import multiprocessing
 import queue
+import sys
 import threading
 import time
 
@@ -13,19 +14,28 @@ from mpmetrics.heap import Heap
 
 Parallel = namedtuple('Parallel', ('spawn', 'barrier', 'queue'))
 parallels = {
-    'process': Parallel(
-            spawn = multiprocessing.Process,
-            barrier = multiprocessing.Barrier,
-            queue = multiprocessing.Queue
-        ),
     'thread': Parallel(
-            spawn = threading.Thread,
-            barrier = threading.Barrier,
-            queue = queue.Queue,
-        ),
+        spawn = threading.Thread,
+        barrier = threading.Barrier,
+        queue = queue.Queue,
+    ),
 }
 
-@pytest.fixture(scope='session', params=('thread', 'process'))
+for method in ('fork', 'forkserver', 'spawn'):
+    if method == 'fork' and sys.platform == 'darwin':
+        continue
+
+    try:
+        context = multiprocessing.get_context(method)
+        parallels[method] = Parallel(
+            spawn = context.Process,
+            barrier = context.Barrier,
+            queue = context.Queue,
+        )
+    except ValueError:
+        pass
+
+@pytest.fixture(scope='session', params=parallels.keys())
 def parallel(request):
     return parallels[request.param]
 

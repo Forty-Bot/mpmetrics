@@ -107,4 +107,6 @@ class RacyTest(ParallelLoop):
         assert self.value.value != self.total
 
 def test_racy(heap, parallel):
+    if parallel == parallels['thread']:
+        pytest.xfail("The GIL isn't racy")
     RacyTest(heap, parallel).run()

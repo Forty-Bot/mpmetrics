@@ -29,7 +29,7 @@ def test_bad_align(alignment):
 
 @st.composite
 def allocs(draw):
-    size = mmap.ALLOCATIONGRANULARITY << draw(st.integers(0, 8))
+    size = mmap.ALLOCATIONGRANULARITY << draw(st.integers(0, 4))
     heap = Heap(map_size=size)
     sizes = st.integers(1, 2 * size)
     aligns = st.integers(0, 12).map(lambda n: 1 << n)

@@ -51,6 +51,7 @@ examples, look in the `examples/` directory.
 * Exemplars are supported, but they are locking.
 * Possibly better performance than `prometheus_metrics`, but probably not a big
   contributor to overall performance.
+* All `multiprocessing` start methods are supported.
 
 Users of `prometheus_flask_exporter` can import `mpmetrics.flask` instead.
 
@@ -70,8 +71,7 @@ fundamental architectural changes necessary to support multiprocessing.
 
 The following limitations apply to this library
 
-* Only Unix is supported, and only Linux x86-64 has been tested.
-* Only the `fork` start method has been tested, though the others should work.
+* Only Unix is supported (due to use of `pthreads`). Linux and macOS are tested.
 * The python interpreter stats will only be from the current process.
 * The shared memory temporary files are not cleaned up properly. This is to
   keep non-`fork` start methods working (as they pickle the Heap to transfer it

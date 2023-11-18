@@ -2,6 +2,8 @@
 # Copyright (C) 2022 Sean Anderson <seanga2@gmail.com>
 
 import ctypes
+import io
+from multiprocessing.reduction import ForkingPickler
 import pickle
 import sys
 
@@ -136,6 +138,36 @@ class _Box:
 
 Box = ObjectType('Box', lambda name, cls: type(name, (_Box, cls), {}))
 
+class _Pickler(ForkingPickler):
+    def __init__(self, file, heap, protocol=None):
+        super().__init__(file, protocol)
+        self.heap = heap
+
+    def persistent_id(self, obj):
+        if obj is self.heap:
+            return 'heap'
+
+    @classmethod
+    def dumps(cls, obj, heap, protocol=None):
+        buf = io.BytesIO()
+        cls(buf, heap, protocol).dump(obj)
+        return buf.getbuffer()
+
+class _Unpickler(pickle.Unpickler):
+    def __init__(self, file, heap):
+        super().__init__(file)
+        self.heap = heap
+
+    def persistent_load(self, pid):
+        if pid != 'heap':
+            raise pickle.UnpicklingError(f"unsupported persistent object {pid}")
+        return self.heap
+
+    @classmethod
+    def loads(cls, data, heap):
+        buf = io.BytesIO(data)
+        return cls(buf, heap).load()
+
 class Object(Struct):
     _fields_ = {
         '_start': Size_t,
@@ -167,12 +199,12 @@ class Object(Struct):
     @property
     def _object(self):
         if self._len.value:
-            return pickle.loads(self._block.deref()[:self._len.value])
+            return _Unpickler.loads(self._block.deref()[:self._len.value], self._heap)
         return self._new()
 
     @_object.setter
     def _object(self, v):
-        vs = pickle.dumps(v)
+        vs = _Pickler.dumps(v, self._heap)
         new_length = len(vs)
         self._len.value = new_length
         if self._len.value > self._size.value:

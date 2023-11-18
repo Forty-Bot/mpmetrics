@@ -63,31 +63,75 @@ def test_malloc(alloc):
             prev = blocks[i - 1]
             assert prev.start + prev.size <= blocks[i].start
 
-def setone(block):
-    block.deref()[0] = 1
+def set_pre(block, val):
+    block.deref()[0] = val
 
 def test_prefork(parallel):
     block = Heap().malloc(1)
     mem = block.deref()
     assert mem[0] == 0
 
-    p = parallel.spawn(target=setone, args=(block,))
+    p = parallel.spawn(target=set_pre, args=(block, 1))
     p.start()
     p.join()
     assert mem[0] == 1
 
-def settwo(q):
+def set_post(q, val):
     mem = q.get().deref()
-    mem[0] = 2
+    mem[0] = val
 
 def test_postfork(parallel):
-    q = parallel.queue()
-    p = parallel.spawn(target=settwo, args=(q,))
-    p.start()
+    q1 = parallel.queue()
+    p1 = parallel.spawn(target=set_post, args=(q1, 1))
+    p1.start()
+
+    q2 = parallel.queue()
+    p2 = parallel.spawn(target=set_post, args=(q2, 2))
+    p2.start()
 
     h = Heap()
     h.malloc(mmap.PAGESIZE)
     block = h.malloc(1)
-    q.put(block)
-    p.join()
-    assert block.deref()[0] == 2
+    mem = block.deref()
+    assert mem[0] == 0
+    q1.put(block)
+    p1.join()
+    assert mem[0] == 1
+
+    q2.put(block)
+    p2.join()
+    assert mem[0] == 2
+
+def chain_start(q1, q2):
+    h = Heap()
+    h.malloc(mmap.PAGESIZE)
+    block = h.malloc(1)
+    q1.put(block)
+    q2.get()
+
+class DummyBlock:
+    def deref(self):
+        return [0]
+
+def test_chain(parallel):
+    q1 = parallel.queue()
+    q2 = parallel.queue()
+    p1 = parallel.spawn(target=chain_start, args=(q1, q2))
+    p1.start()
+
+    q3 = parallel.queue()
+    p2 = parallel.spawn(target=set_post, args=(q3, 2))
+    p2.start()
+
+    block = DummyBlock()
+    try:
+        block = q1.get()
+        q2.put(None)
+        mem = block.deref()
+        assert mem[0] == 0
+        mem[0] = 1
+        p1.join()
+    finally:
+        q3.put(block)
+        p2.join()
+    assert mem[0] == 2

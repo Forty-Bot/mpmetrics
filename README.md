@@ -73,9 +73,6 @@ The following limitations apply to this library
 
 * Only Unix is supported (due to use of `pthreads`). Linux and macOS are tested.
 * The python interpreter stats will only be from the current process.
-* The shared memory temporary files are not cleaned up properly. This is to
-  keep non-`fork` start methods working (as they pickle the Heap to transfer it
-  between processes
 
 ## Notes
 

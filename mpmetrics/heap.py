@@ -3,8 +3,9 @@
 
 import itertools
 import mmap
+from multiprocessing.reduction import DupFd
 import os
-from tempfile import NamedTemporaryFile
+from tempfile import TemporaryFile
 import threading
 
 import _mpmetrics
@@ -32,7 +33,7 @@ class Heap(Struct):
         self.map_size = map_size
 
         # File backing our shared memory
-        self._file = NamedTemporaryFile()
+        self._file = TemporaryFile()
         self._fd = self._file.fileno()
         # Allocate a page to start with
         os.truncate(self._fd, map_size)
@@ -46,12 +47,12 @@ class Heap(Struct):
         self._base.value = self.size
 
     def __getstate__(self):
-        return self.map_size, self._file.name
+        return self.map_size, DupFd(self._fd)
 
     def __setstate__(self, state):
-        self.map_size, filename = state
-        self._file = open(filename, 'a+b')
-        self._fd = self._file.fileno()
+        self.map_size, df = state
+        self._fd = df.detach()
+        self._file = open(self._fd, 'a+b')
 
         # Process-local shared memory maps
         self._maps = [mmap.mmap(self._fd, self.map_size)]
@@ -59,10 +60,6 @@ class Heap(Struct):
         self._lock = threading.Lock()
 
         super()._setstate(memoryview(self._maps[0])[:self.size])
-
-    def __del__(self):
-        if hasattr(self, '_file'):
-            self._file.close()
 
     class Block:
         def __init__(self, heap, start, size):

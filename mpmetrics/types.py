@@ -150,6 +150,7 @@ class Object(Struct):
         self._heap = heap
 
     def _setstate(self, mem, heap):
+        assert heap is not None
         super()._setstate(mem, heap)
         self._heap = heap
 

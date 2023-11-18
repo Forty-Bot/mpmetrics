@@ -386,7 +386,7 @@ def _Histogram(__name__, bucket_count):
         self._created.value = time.time()
 
     def _setstate(self, mem, heap):
-        Struct._setstate(self, mem)
+        Struct._setstate(self, mem, heap)
         self.thresholds = tuple(threshold.value for threshold in self._thresholds)
 
     def observe(self, amount, exemplar=None):

@@ -349,7 +349,8 @@ def test_time(registry, cls, name):
 @pytest.mark.parametrize('cls', (Counter, Gauge, Summary, Histogram))
 def test_pickle(registry, cls):
     metric = cls('name', 'help', labelnames=('l'), registry=registry)
-    pickle.loads(pickle.dumps(metric.labels('x')))
+    metric.labels('x')
+    assert list(metric.collect()) == list(pickle.loads(pickle.dumps(metric)).collect())
 
 class TestEnum:
     @pytest.fixture

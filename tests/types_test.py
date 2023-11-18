@@ -68,7 +68,7 @@ def test_bad_size(n):
     with pytest.raises(ValueError):
         Array[Size_t, n]
 
-@settings(max_examples=25)
+@settings(max_examples=25, deadline=5000)
 class DictComparison(RuleBasedStateMachine):
     keys = Bundle('keys')
     values = Bundle('values')

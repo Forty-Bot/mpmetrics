@@ -6,7 +6,6 @@ import mmap
 import os
 from tempfile import NamedTemporaryFile
 import threading
-from weakref import WeakValueDictionary
 
 import _mpmetrics
 from .types import Size_t, Struct
@@ -26,78 +25,40 @@ class Heap(Struct):
         '_base': Size_t,
     }
 
-    # Only create one heap per process to avoid duplicate mappings
-    _heaps_lock = threading.Lock()
-    _heaps = WeakValueDictionary()
+    def __init__(self, map_size=PAGESIZE):
+        if map_size % mmap.ALLOCATIONGRANULARITY:
+            raise ValueError("size must be a multiple of {}".format(mmap.ALLOCATIONGRANULARITY))
+        _align_check(map_size)
+        self.map_size = map_size
 
-    def __new__(cls, map_size=PAGESIZE, filename=None):
-        cls._heaps_lock.acquire()
-        try:
-            if filename:
-                if heap := cls._heaps.get(filename, None):
-                    return heap
+        # File backing our shared memory
+        self._file = NamedTemporaryFile()
+        self._fd = self._file.fileno()
+        # Allocate a page to start with
+        os.truncate(self._fd, map_size)
 
-            return super().__new__(cls)
-        except:
-            cls._heaps_lock.release()
-            raise
+        # Process-local shared memory maps
+        self._maps = [mmap.mmap(self._fd, map_size)]
+        # Lock for _maps
+        self._lock = threading.Lock()
 
-    # Must be called with Heap._heaps_lock held; it will be released
-    def __init__(self, map_size=PAGESIZE, filename=None):
-        try:
-            if filename:
-                return
-
-            if map_size % mmap.ALLOCATIONGRANULARITY:
-                raise ValueError("size must be a multiple of {}".format(mmap.ALLOCATIONGRANULARITY))
-            _align_check(map_size)
-            self.map_size = map_size
-
-            # File backing our shared memory
-            self._file = NamedTemporaryFile()
-            self._fd = self._file.fileno()
-            # Allocate a page to start with
-            os.truncate(self._fd, map_size)
-
-            # Process-local shared memory maps
-            self._maps = [mmap.mmap(self._fd, map_size)]
-            # Lock for _maps
-            self._lock = threading.Lock()
-
-            super().__init__(memoryview(self._maps[0])[:self.size])
-            self._base.value = self.size
-
-            # Add ourself to the list of heaps
-            self._heaps[self._file.name] = self
-        finally:
-            self._heaps_lock.release()
-
-    def __getnewargs__(self):
-        return self.map_size, self._file.name
+        super().__init__(memoryview(self._maps[0])[:self.size])
+        self._base.value = self.size
 
     def __getstate__(self):
         return self.map_size, self._file.name
 
     def __setstate__(self, state):
-        try:
-            if hasattr(self, '_file'):
-                return
+        self.map_size, filename = state
+        self._file = open(filename, 'a+b')
+        self._fd = self._file.fileno()
 
-            self.map_size, filename = state
-            self._file = open(filename, 'a+b')
-            self._fd = self._file.fileno()
+        # Process-local shared memory maps
+        self._maps = [mmap.mmap(self._fd, self.map_size)]
+        # Lock for _maps
+        self._lock = threading.Lock()
 
-            # Process-local shared memory maps
-            self._maps = [mmap.mmap(self._fd, self.map_size)]
-            # Lock for _maps
-            self._lock = threading.Lock()
-
-            super()._setstate(memoryview(self._maps[0])[:self.size])
-
-            # Add ourself to the list of heaps
-            self._heaps[self._file.name] = self
-        finally:
-            self._heaps_lock.release()
+        super()._setstate(memoryview(self._maps[0])[:self.size])
 
     def __del__(self):
         if hasattr(self, '_file'):

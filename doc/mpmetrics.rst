@@ -1,7 +1,7 @@
 mpmetrics
 =========
 
-.. automethod:: mpmetrics.metrics.LabeledCollector.labels
+.. automodule:: mpmetrics
 
 .. autodata:: mpmetrics.Counter
 
@@ -30,3 +30,15 @@ mpmetrics
 .. autodata:: mpmetrics.Enum
 
         .. automethod:: mpmetrics.Enum.state
+
+mpmetrics.metrics
+-----------------
+
+.. automodule:: mpmetrics.metrics
+        :members:
+        :special-members: __call__
+
+mpmetrics.flask
+---------------
+
+.. automodule:: mpmetrics.flask

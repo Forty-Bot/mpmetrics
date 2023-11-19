@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 # Copyright (C) 2022 Sean Anderson <seanga2@gmail.com>
 
+"""Import this module to monkey-patch `prometheus_flask_exporter` to use mpmetrics' metrics."""
+
 import prometheus_flask_exporter
 
 from . import Counter, Gauge, Summary, Histogram, Enum

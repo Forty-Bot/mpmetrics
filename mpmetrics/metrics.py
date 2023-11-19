@@ -3,6 +3,8 @@
 # Copyright 2015 The Prometheus Authors
 # Portions of this file are adapted from prometheus_client
 
+"""Metric implementations"""
+
 import bisect
 from contextlib import contextmanager
 import itertools
@@ -43,6 +45,10 @@ def _validate_exemplar(exemplar):
         raise ValueError("exemplar too long ({code_points} code points)")
 
 class Collector:
+    """A basic collector for non-labeled metrics.
+
+    Attributes are proxied to the underlying metric.
+    """
     def __init__(self, metric, name, docs, registry, heap, kwargs):
         self._name = name
         self._docs = docs
@@ -74,6 +80,10 @@ class Collector:
         yield family
 
 class LabeledCollector(Struct):
+    """A collector supporting labeled metrics.
+
+    :py:func:`labels` must be called to get individual metrics.
+    """
     _fields_ = {
         '_shared_lock': _mpmetrics.Lock,
         '_metrics': Dict,
@@ -197,6 +207,12 @@ class LabeledCollector(Struct):
         yield family
 
 class CollectorFactory:
+    """A factory for creating new metrics.
+
+    This class is used by metrics to create the appropriate collector based on the constructor
+    arguments.
+    """
+
     _heap_lock = threading.Lock()
 
     @classproperty
@@ -215,6 +231,32 @@ class CollectorFactory:
 
     def __call__(self, name, documentation, labelnames=(), namespace="",
                  subsystem="", unit="", registry=registry.REGISTRY, **kwargs):
+        """Create a new metric.
+
+        :param str name: The name of the metric
+        :param str documentation: Documentation for the metric. This will be displayed as a ``HELP``
+            comment before the metric.
+        :param Iterable[str] labelnames: A list of labels to be used with the metric
+        :param str namespace: A global namespace for the metric. This will be prepended to `name`.
+        :param str subsystem: A subsystem name for the metric. This will be prepended to `name`
+            after `namespace`.
+        :param str unit: The unit of measurement for the metric. This will be appended to `name`.
+        :param registry: The registry to register this metric with. It will collect data from the
+            metric.
+        :param \\**kwargs: Any additional arguments are passed to the metric itself.
+        :return: A new metric
+        :rtype: Option[Collector, LabeledCollector]
+
+        The name of the metric is roughly::
+
+            name = f"{namespace}_{subsystem}_{name}_{unit}"
+
+        with unnecessary underscores ommitted.
+
+        If `labelnames` is truthy, then a :py:class:`LabeledCollector` for the metric will be
+        returned. Otherwise a :py:class:`Collector` will be returned.
+        """
+
         parts = []
         if namespace:
             parts.append(namespace)
@@ -273,6 +315,9 @@ class Counter(Struct):
         # Count only one type of exception
         with c.count_exceptions(ValueError):
             pass
+
+    For more information about the parameters used when creating a `Counter`, refer to
+    :py:class:`~mpmetrics.metrics.CollectorFactory`.
     """
 
     typ = 'counter'
@@ -368,6 +413,9 @@ class Gauge(Struct):
        d = Gauge('data_objects', 'Number of objects')
        my_dict = {}
        d.set_function(lambda: len(my_dict))
+
+    For more information about the parameters used when creating a `Gauge`, refer to
+    :py:class:`~mpmetrics.metrics.CollectorFactory`.
     """
 
     typ = 'gauge'
@@ -458,6 +506,9 @@ class Summary(Struct):
 
         with REQUEST_TIME.time():
             pass  # Logic to be timed
+
+    For more information about the parameters used when creating a `Summary`, refer to
+    :py:class:`~mpmetrics.metrics.CollectorFactory`.
     """
 
     typ = 'summary'
@@ -563,6 +614,9 @@ def _Histogram(__name__, bucket_count):
 
         with REQUEST_TIME.time():
             pass  # Logic to be timed
+
+    For more information about the parameters used when creating a `Summary`, refer to
+    :py:class:`~mpmetrics.metrics.CollectorFactory`.
 
     The default buckets are intended to cover a typical web/rpc request from milliseconds to
     seconds. They can be overridden by passing `buckets` keyword argument to `Histogram`.
@@ -701,6 +755,9 @@ class Enum(Struct):
         e.state('running')
 
     The first listed state will be the default.
+
+    For more information about the parameters used when creating a `Summary`, refer to
+    :py:class:`~mpmetrics.metrics.CollectorFactory`.
     """
 
     typ = 'stateset'

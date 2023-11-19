@@ -6,8 +6,8 @@ mpmetrics implements metrics suitable for use with
 [OpenMetrics](https://github.com/OpenObservability/OpenMetrics). It provides
 multiprocess-safe replacements for
 [`prometheus_client`](https://github.com/prometheus/client_python)'s `Counter`,
-`Gauge`, `Summary`, and `Histogram`. To use it, just import these classes from
-`mpmetrics` instead of from `prometheus_client`:
+`Gauge`, `Summary`, `Histogram`, and `Enum`. To use it, just import these
+classes from `mpmetrics` instead of from `prometheus_client`:
 
 ```python
 from mpmetrics import Summary

@@ -67,7 +67,7 @@ class Collector:
             raise AttributeError
 
     def _family(self):
-        return metrics_core.Metric(self._name, self._docs, self._metric.typ)
+        return metrics_core.Metric(self._name, self._docs, self._metric._typ)
 
     def describe(self):
         yield self._family()
@@ -103,10 +103,10 @@ class LabeledCollector(Struct):
         for label in self._labelnames:
             _validate_labelname(label)
 
-            if hasattr(self._metric, 'reserved_labels') and label in self._metric.reserved_labels:
+            if hasattr(self._metric, '_reserved_labels') and label in self._metric._reserved_labels:
                 raise ValueError(f"reserved label {label}")
 
-            if getattr(self._metric, 'name_is_reserved', False) and label == name:
+            if getattr(self._metric, '_name_is_reserved', False) and label == name:
                 raise ValueError(f"reserved label {label}")
 
         self._lock = threading.Lock()
@@ -184,7 +184,7 @@ class LabeledCollector(Struct):
             return metric
 
     def _family(self):
-        return metrics_core.Metric(self._name, self._docs, self._metric.typ)
+        return metrics_core.Metric(self._name, self._docs, self._metric._typ)
 
     def describe(self):
         yield self._family()
@@ -262,14 +262,14 @@ class CollectorFactory:
             parts.append(namespace)
         if subsystem:
             parts.append(subsystem)
-        if self._metric.typ == 'counter':
+        if self._metric._typ == 'counter':
             name = name.removesuffix('_total')
         if unit:
             name = name.removesuffix('_' + unit)
         parts.append(name)
         if unit:
-            if self._metric.typ in ('info', 'stateset'):
-                raise ValueError(f"{self._metric.typ} metrics cannot have a unit")
+            if self._metric._typ in ('info', 'stateset'):
+                raise ValueError(f"{self._metric._typ} metrics cannot have a unit")
             parts.append(unit)
 
         name = '_'.join(parts)
@@ -320,7 +320,7 @@ class Counter(Struct):
     :py:class:`~mpmetrics.metrics.CollectorFactory`.
     """
 
-    typ = 'counter'
+    _typ = 'counter'
     _fields_ = {
         '_lock': _mpmetrics.Lock,
         '_total': AtomicUInt64,
@@ -418,7 +418,7 @@ class Gauge(Struct):
     :py:class:`~mpmetrics.metrics.CollectorFactory`.
     """
 
-    typ = 'gauge'
+    _typ = 'gauge'
     _fields_ = {
         '_value': AtomicDouble,
     }
@@ -511,8 +511,8 @@ class Summary(Struct):
     :py:class:`~mpmetrics.metrics.CollectorFactory`.
     """
 
-    typ = 'summary'
-    reserved_labels = ('quantile',)
+    _typ = 'summary'
+    _reserved_labels = ('quantile',)
     _fields_ = {
         '_lock': _mpmetrics.Lock,
         '_data': Array[_SummaryData, 2],
@@ -622,7 +622,7 @@ def _Histogram(__name__, bucket_count):
     seconds. They can be overridden by passing `buckets` keyword argument to `Histogram`.
     """
 
-    typ = 'histogram'
+    _typ = 'histogram'
     _fields_ = {
         '_thresholds': Array[Double, bucket_count],
         '_lock': _mpmetrics.Lock,
@@ -720,8 +720,8 @@ _Histogram = IntType('_Histogram', _Histogram)
 
 class _HistogramFactory:
     __doc__ = _Histogram.cls.__doc__
-    typ = 'histogram'
-    reserved_labels = ('le',)
+    _typ = 'histogram'
+    _reserved_labels = ('le',)
     DEFAULT_BUCKETS = (.005, .01, .025, .05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0, 7.5, 10.0,
                        float('inf'))
 
@@ -760,8 +760,8 @@ class Enum(Struct):
     :py:class:`~mpmetrics.metrics.CollectorFactory`.
     """
 
-    typ = 'stateset'
-    name_is_reserved = True
+    _typ = 'stateset'
+    _name_is_reserved = True
     _fields_ = {
         '_value': AtomicUInt64,
     }

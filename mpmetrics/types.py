@@ -136,7 +136,7 @@ class _Box:
         self.__block, kwargs = state
         super()._setstate(self.__block.deref(), heap=self.__block.heap, **kwargs)
 
-Box = ObjectType('Box', lambda name, cls: type(name, (_Box, cls), {}))
+Box = ObjectType('Box', lambda name, cls: type(name, (_Box, cls), {'__doc__': cls.__doc__}))
 
 class _Pickler(ForkingPickler):
     def __init__(self, file, heap, protocol=None):

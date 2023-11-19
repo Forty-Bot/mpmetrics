@@ -13,3 +13,6 @@ dist
 # Test bits
 .hypothesis
 .coverage*
+
+# Doc stuff
+doc/out

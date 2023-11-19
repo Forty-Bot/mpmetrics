@@ -19,6 +19,13 @@ _mpmetrics.so: $(OBJS)
 
 -include $(DEPS)
 
+SPHINX := sphinx-build
+
+.PHONY: htmldocs
+htmldocs:
+	$(SPHINX) -M html doc doc/out
+
 .PHONY: clean
 clean:
+	rm -rf doc/out
 	rm -f *.so *.o *.d

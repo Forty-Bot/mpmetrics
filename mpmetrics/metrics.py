@@ -140,7 +140,7 @@ class LabeledCollector(Struct):
         """Return the child for the given labelset.
 
         All metrics can have labels, allowing grouping of related time series.
-        Taking a counter as an example:
+        Taking a counter as an example::
 
             from mpmetrics import Counter
 
@@ -148,7 +148,7 @@ class LabeledCollector(Struct):
             c.labels('get', '/').inc()
             c.labels('post', '/submit').inc()
 
-        Labels can also be provided as keyword arguments:
+        Labels can also be provided as keyword arguments::
 
             from mpmetrics import Counter
 
@@ -156,8 +156,8 @@ class LabeledCollector(Struct):
             c.labels(method='get', endpoint='/').inc()
             c.labels(method='post', endpoint='/submit').inc()
 
-        See the best practices on [naming](http://prometheus.io/docs/practices/naming/)
-        and [labels](http://prometheus.io/docs/practices/instrumentation/#use-labels).
+        See the best practices on `naming <http://prometheus.io/docs/practices/naming/>`_
+        and `labels <http://prometheus.io/docs/practices/instrumentation/#use-labels>`_.
         """
 
         values = self._label_values(values, labels)
@@ -215,7 +215,6 @@ class CollectorFactory:
 
     def __call__(self, name, documentation, labelnames=(), namespace="",
                  subsystem="", unit="", registry=registry.REGISTRY, **kwargs):
-
         parts = []
         if namespace:
             parts.append(namespace)
@@ -246,14 +245,15 @@ class Counter(Struct):
     """A Counter tracks counts of events or running totals.
 
     Example use cases for Counters:
-    - Number of requests processed
-    - Number of items that were inserted into a queue
-    - Total amount of data that a system has processed
+
+    * Number of requests processed
+    * Number of items that were inserted into a queue
+    * Total amount of data that a system has processed
 
     Counters can only go up (and are reset when the process restarts). If your use case can go down,
     you should use a Gauge instead.
 
-    An example for a Counter:
+    An example for a Counter::
 
         from mpmetrics import Counter
 
@@ -261,7 +261,7 @@ class Counter(Struct):
         c.inc()     # Increment by 1
         c.inc(1.6)  # Increment by given value
 
-    There are utilities to count exceptions raised:
+    There are also utilities to count exceptions raised::
 
         @c.count_exceptions()
         def f():
@@ -335,13 +335,14 @@ class Gauge(Struct):
     """Gauge metric, to report instantaneous values.
 
     Examples of Gauges include:
-       - In-progress requests
-       - Number of items in a queue
-       - Free memory
-       - Total memory
-       - Temperature
 
-    Gauges can go both up and down.
+    * In-progress requests
+    * Number of items in a queue
+    * Free memory
+    * Total memory
+    * Temperature
+
+    Gauges can go both up and down::
 
        from mpmetrics import Gauge
 
@@ -350,7 +351,7 @@ class Gauge(Struct):
        g.dec(10)    # Decrement by given value
        g.set(4.2)   # Set to a given value
 
-    There are utilities for common use cases:
+    There are utilities for common use cases::
 
        g.set_to_current_time()   # Set to current unix time
 
@@ -362,7 +363,7 @@ class Gauge(Struct):
        with g.track_inprogress():
            pass
 
-    A Gauge can also take its value from a callback:
+    A Gauge can also take its value from a callback::
 
        d = Gauge('data_objects', 'Number of objects')
        my_dict = {}
@@ -431,17 +432,18 @@ class Summary(Struct):
     """A Summary tracks the size and number of events.
 
     Example use cases for Summaries:
-    - Response latency
-    - Request size
 
-    Example for a Summary:
+    * Response latency
+    * Request size
+
+    Example for a Summary::
 
         from mpmetrics import Summary
 
         s = Summary('request_size_bytes', 'Request size (bytes)')
         s.observe(512)  # Observe 512 (bytes)
 
-    Example for a Summary using time:
+    Example for a Summary using time::
 
         from mpmetrics import Summary
 
@@ -452,7 +454,7 @@ class Summary(Struct):
           '''A dummy function'''
           time.sleep(1)
 
-    Example for using the same Summary object as a context manager:
+    Example for using the same Summary object as a context manager::
 
         with REQUEST_TIME.time():
             pass  # Logic to be timed
@@ -535,17 +537,18 @@ def _Histogram(__name__, bucket_count):
     You can use Histograms for aggregatable calculation of quantiles.
 
     Example use cases:
-    - Response latency
-    - Request size
 
-    Example for a Histogram:
+    * Response latency
+    * Request size
+
+    Example for a Histogram::
 
         from mpmetrics import Histogram
 
         h = Histogram('request_size_bytes', 'Request size (bytes)')
         h.observe(512)  # Observe 512 (bytes)
 
-    Example for a Histogram using time:
+    Example for a Histogram using time::
 
         from mpmetrics import Histogram
 
@@ -556,7 +559,7 @@ def _Histogram(__name__, bucket_count):
           '''A dummy function'''
           time.sleep(1)
 
-    Example of using the same Histogram object as a context manager:
+    Example of using the same Histogram object as a context manager::
 
         with REQUEST_TIME.time():
             pass  # Logic to be timed
@@ -689,7 +692,7 @@ Histogram = CollectorFactory(_HistogramFactory())
 class Enum(Struct):
     """Enum metric, which has one selected state in a set
 
-    Example usage:
+    Example usage::
 
         from mpmetrics import Enum
 

@@ -217,6 +217,10 @@ error:
 		return -1;
 	}
 
+	LockType.tp_base = &BufferType;
+	if (PyType_Ready(&LockType))
+		return -1;
+
 	if (PyType_AddSizeConstant(&LockType, "size", sizeof(pthread_mutex_t)))
 		return -1;
 
@@ -224,7 +228,6 @@ error:
 				   alignof(pthread_mutex_t)))
 		return -1;
 
-	LockType.tp_base = &BufferType;
 	Py_INCREF(&BufferType);
 	err = PyModule_AddType(m, &LockType);
 	Py_DECREF(&BufferType);

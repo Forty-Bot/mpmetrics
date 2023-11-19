@@ -165,6 +165,10 @@ static int TYPE_ADD(PyObject *m)
 		return ret;
 	}
 
+	TYPE.tp_base = &BufferType;
+	if (PyType_Ready(&TYPE))
+		return -1;
+
 	if (PyType_AddSizeConstant(&TYPE, "size", sizeof(PTYPE)))
 		return -1;
 
@@ -192,7 +196,6 @@ static int TYPE_ADD(PyObject *m)
 #endif
 #endif
 
-	TYPE.tp_base = &BufferType;
 	Py_INCREF(&BufferType);
 	ret = PyModule_AddType(m, &TYPE);
 	Py_DECREF(&BufferType);

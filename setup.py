@@ -42,6 +42,10 @@ setuptools.setup(
         'prometheus_client',
     ],
     extras_require = {
+        "doc": [
+            'sphinx',
+            'sphinx-rtd-theme',
+        ],
         "flask": [
             'prometheus_flask_exporter',
         ],

@@ -82,7 +82,11 @@ PyTypeObject BufferType = {
 	.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE |
 		    Py_TPFLAGS_HAVE_GC,
 	.tp_name = "_mpmetrics.Buffer",
-	.tp_doc = "Shared memory buffer base class",
+	.tp_doc = PyDoc_STR("Buffer(mem)\n"
+			    "--\n"
+			    "\n"
+			    "Create a buffer backed by 'mem'. This is a base class for other C\n"
+			    "classes in _mpmetrics."),
 	.tp_new = PyType_GenericNew,
 	.tp_init = (initproc)Buffer_init,
 	.tp_dealloc = (destructor)Buffer_dealloc,
@@ -154,7 +158,12 @@ int PyType_AddDoubleConstant(PyTypeObject *type, const char *name,
 static PyModuleDef module = {
 	PyModuleDef_HEAD_INIT,
 	.m_name = "_mpmetrics",
-	.m_doc = "C helpers for multiprocess-safe metrics",
+	.m_doc = PyDoc_STR("C helpers for multiprocess-safe metrics\n"
+			   "\n"
+			   "This module provides various concurrency primitives, typically backed\n"
+			   "by shared memory. You probably want to use mpmetrics.atomic instead\n"
+			   "of the atomic types in this module, as they may not always be\n"
+			   "available on all architectures."),
 	.m_size = -1,
 };
 

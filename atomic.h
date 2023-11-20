@@ -5,8 +5,10 @@
 
 #ifdef DOUBLE
 #define PTYPE double
-#define FORMAT "d"
+#define FORMAT "f"
+#define DOCTYPE "float"
 #define NAME AtomicDouble
+#define LONGNAME "atomic double"
 #define OBJECT AtomicDouble
 #define AS PyFloat_AsDouble
 #define FROM PyFloat_FromDouble
@@ -15,13 +17,16 @@
 #define FORMAT paste(PRId, WIDTH)
 #define PTYPE paste(paste(int, WIDTH), _t)
 #define NAME paste(AtomicInt, WIDTH)
+#define LONGNAME "atomic " stringify(WIDTH) "-bit signed integer"
 #define FROM PyLong_FromLongLong
 #else /* SIGNED */
 #define PTYPE paste(paste(uint, WIDTH), _t)
 #define FORMAT paste(PRIu, WIDTH)
 #define NAME paste(AtomicUInt, WIDTH)
+#define LONGNAME "atomic " stringify(WIDTH) "-bit unsigned integer"
 #define FROM PyLong_FromUnsignedLongLong
 #endif /* SIGNED */
+#define DOCTYPE "int"
 #define OBJECT paste(NAME, OBJECT)
 #define AS _Generic((PTYPE)0, \
 	int: PyLong_AsInt, \
@@ -118,19 +123,35 @@ static PyMethodDef METHODS[] = {
 		.ml_name = "get",
 		.ml_meth = (PyCFunction)GET,
 		.ml_flags = METH_NOARGS,
-		.ml_doc = "Get the current value",
+		.ml_doc = PyDoc_STR("get() -> " DOCTYPE "\n"
+				    "\n"
+				    "Return the current value of the backing " DOCTYPE "."),
 	},
 	{
 		.ml_name = "set",
 		.ml_meth = (PyCFunction)SET,
 		.ml_flags = METH_O,
-		.ml_doc = "Set the current value",
+		.ml_doc = PyDoc_STR("set(value)\n"
+				    "\n"
+				    "Set the backing " DOCTYPE " to 'value'."),
 	},
 	{
 		.ml_name = "add",
 		.ml_meth = (PyCFunction)ADD,
 		.ml_flags = METH_VARARGS | METH_KEYWORDS,
-		.ml_doc = "Add a number to the value",
+		.ml_doc = PyDoc_STR("add(amount, raise_on_overflow=True) -> " DOCTYPE "\n"
+				    "\n"
+#ifdef DOUBLE
+				    "Add 'amount' to the backing " DOCTYPE " and return the value\n"
+				    "from before the addition. The value of 'raise_on_overflow'\n"
+				    "is ignored."),
+#else
+				    "Add 'amount' to the backing " DOCTYPE " and return the value\n"
+				    "from before the addition. If the addition overflows, the\n"
+				    "result will wrap around (using two's complement addition)\n"
+				    "and, if 'raise_on_overflow' is True, an exception will be\n"
+				    "raised."),
+#endif
 	},
 	{ 0 },
 };
@@ -141,11 +162,14 @@ static PyTypeObject TYPE = {
 	.tp_basicsize = sizeof(OBJECT),
 	.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
 	.tp_name = "_mpmetrics." stringify(NAME),
-#ifdef DOUBLE
-	.tp_doc = "Atomic " stringify(PTYPE),
-#else
-	.tp_doc = "Atomic " stringify(WIDTH) "-bit integer",
-#endif
+	.tp_doc = PyDoc_STR(stringify(NAME) "(mem)\n"
+			    "--\n"
+			    "\n"
+			    "Construct a new atomic " LONGNAME " backed by 'mem'.\n"
+			    "All atomic operations use the sequentially-consistent memory order.\n"
+			    "On architectures not supporting " LONGNAME "s, this\n"
+			    "class will be None."),
+
 	.tp_new = PyType_GenericNew,
 	.tp_init = (initproc)INIT,
 	.tp_methods = METHODS,
@@ -212,7 +236,9 @@ static int TYPE_ADD(PyObject *m)
 
 #undef PTYPE
 #undef FORMAT
+#undef DOCTYPE
 #undef NAME
+#undef LONGNAME
 #undef OBJECT
 #undef AS
 #undef FROM

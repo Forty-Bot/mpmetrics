@@ -157,25 +157,30 @@ static PyMethodDef Lock_methods[] = {
 		.ml_name = "acquire",
 		.ml_meth = (PyCFunction)Lock_acquire,
 		.ml_flags = METH_VARARGS | METH_KEYWORDS,
-		.ml_doc = "Acquire the lock",
+		.ml_doc = PyDoc_STR("acquire(block=True, timeout=None) -> bool\n"
+				    "\n"
+				    "Acquire the lock. If 'block' is False, then try to acquire\n"
+				    "the lock without blocking. If 'timeout' is not None, then\n"
+				    "wait for at most 'timeout' seconds before aborting. Returns\n"
+				    "True if the lock was acquired, or False otherwise."),
 	},
 	{
 		.ml_name = "release",
 		.ml_meth = (PyCFunction)Lock_release,
 		.ml_flags = METH_NOARGS,
-		.ml_doc = "Release the lock",
+		.ml_doc = PyDoc_STR("release()\n"
+				    "\n"
+				    "Release the lock."),
 	},
 	{
 		.ml_name = "__enter__",
 		.ml_meth = (PyCFunction)Lock_enter,
 		.ml_flags = METH_NOARGS,
-		.ml_doc = "Enter a critical section",
 	},
 	{
 		.ml_name = "__exit__",
 		.ml_meth = (PyCFunction)Lock_exit,
 		.ml_flags = METH_FASTCALL,
-		.ml_doc = "Exit a critical section",
 	},
 	{ 0 },
 };
@@ -185,7 +190,16 @@ static PyTypeObject LockType = {
 	.tp_basicsize = sizeof(LockObject),
 	.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
 	.tp_name = "_mpmetrics.Lock",
-	.tp_doc = "Shared memory mutex lock",
+	.tp_doc = PyDoc_STR("Lock(mem)\n"
+			    "--\n"
+			    "\n"
+			    "Create a shared memory mutex lock backed by 'mem'. On POSIX systems,\n"
+			    "this uses the POSIX threads mutex lock implementation. This lock is\n"
+			    "not reentrant: trying to acquire it multiple times or release it\n"
+			    "without first having acquired it will cause a deadlock.\n"
+			    "\n"
+			    "This class may be used as a context manager. Acquiring the lock is\n"
+			    "blocking when entering a critical section."),
 	.tp_new = PyType_GenericNew,
 	.tp_init = (initproc)Lock_init,
 	.tp_methods = Lock_methods,

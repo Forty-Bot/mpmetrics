@@ -165,7 +165,7 @@ static PyTypeObject TYPE = {
 	.tp_doc = PyDoc_STR(stringify(NAME) "(mem)\n"
 			    "--\n"
 			    "\n"
-			    "Construct a new atomic " LONGNAME " backed by 'mem'.\n"
+			    "Construct a new " LONGNAME " backed by 'mem'.\n"
 			    "All atomic operations use the sequentially-consistent memory order.\n"
 			    "On architectures not supporting " LONGNAME "s, this\n"
 			    "class will be None."),

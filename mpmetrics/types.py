@@ -200,9 +200,6 @@ def Array(__name__, cls, n):
     def __getitem__(self, key):
         return self._vals[key]
 
-    def __setitem__(self, key, value):
-        self._vals[key] = value
-
     def __iter__(self):
         return iter(self._vals)
 

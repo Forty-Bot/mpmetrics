@@ -39,7 +39,8 @@ if __name__ == '__main__':
 ```
 
 Navigate to http://localhost:8000/metrics to view the results. For more
-examples, look in the `examples/` directory.
+examples, look in the `examples/` directory or check out the
+[documentation](https://mpmetrics.trends.tf/).
 
 ## Features
 

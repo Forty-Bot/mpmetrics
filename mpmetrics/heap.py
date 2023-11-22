@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 # Copyright (C) 2021-22 Sean Anderson <seanga2@gmail.com>
 
+"""A shared memory allocator."""
+
 import itertools
 import mmap
 from multiprocessing.reduction import DupFd
@@ -21,12 +23,36 @@ except OSError:
 PAGESIZE = 4096
 
 class Heap(Struct):
+    """A shared memory allocator.
+
+    This is a basic arena-style allocator. The core algorithm is (effectively)::
+
+        def malloc(size):
+            old_base = base
+            base += size
+            return old_base
+
+    We do not keep track of free blocks, so :py:meth:`Heap.Block.free` is a no-op.
+
+    Memory is requested from the OS in page-sized blocks. As we don't map all
+    of our memory up front, it's possible that different processes will map new
+    pages at different addresses. Therefore, we keep track of the address where
+    each page is mapped, and ensure blocks do not cross page boundaries.
+    Larger-than-page-size blocks are supported by aligning the block to the
+    page size and mapping all pages in that block in one go.
+    """
+
     _fields_ = {
         '_shared_lock': _mpmetrics.Lock,
         '_base': Size_t,
     }
 
     def __init__(self, map_size=PAGESIZE):
+        """Create a new Heap.
+
+        :param int map_size: The granularity to use when requesting memory from the OS
+        """
+
         if map_size % mmap.ALLOCATIONGRANULARITY:
             raise ValueError("size must be a multiple of {}".format(mmap.ALLOCATIONGRANULARITY))
         _align_check(map_size)
@@ -62,12 +88,29 @@ class Heap(Struct):
         super()._setstate(memoryview(self._maps[0])[:self.size])
 
     class Block:
+        """A block of memory allocated from a Heap."""
+
         def __init__(self, heap, start, size):
+            """Create a new Block.
+
+            :param Heap heap: The heap this block is from
+            :param int start: The offset of this block within the heap
+            :param int size: The size of this block
+            """
+
             self.heap = heap
             self.start = start
             self.size = size
 
         def deref(self):
+            """Dereference this block
+
+            :return: The memory referenced by this block
+            :rtype: memoryview
+
+            Dereference the block, faulting in unmapped pages as necessary.
+            """
+
             heap = self.heap
             first_page = int(self.start / heap.map_size)
             last_page = int((self.start + self.size - 1) / heap.map_size)
@@ -85,9 +128,21 @@ class Heap(Struct):
             return memoryview(map)[off:off+self.size]
 
         def free(self):
+            """Free this block"""
             pass
 
     def malloc(self, size, alignment=CACHELINESIZE):
+        """Allocate shared memory.
+
+        :param int size: The amount of shared memory to allocate, in bytes
+        :param int alignment: The minimum alignment of the memory
+        :return: A block of shared memory
+        :rtype: Block
+
+        Allocate at least `size` bytes of shared memory. It will be aligned to
+        at least `alignment`.
+        """
+
         if size <= 0:
             raise ValueError("size must be strictly positive")
         elif size > self.map_size:

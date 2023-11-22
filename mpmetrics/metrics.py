@@ -70,9 +70,21 @@ class Collector:
         return metrics_core.Metric(self._name, self._docs, self._metric._typ)
 
     def describe(self):
+        """Describe the metric
+
+        :return: An iterator yielding one metric with no samples
+        :rtype: Iterator[prometheus_client.metrics_core.Metric]
+        """
+
         yield self._family()
 
     def collect(self):
+        """Collect samples from the metric
+
+        :return: An iterator yielding one metric with collected samples.
+        :rtype: Iterator[prometheus_client.metrics_core.Metric]
+        """
+
         family = self._family()
         def add_sample(suffix, value, labels={}, exemplar=None):
             family.add_sample(self._name + suffix, labels, value, exemplar=exemplar)
@@ -187,9 +199,21 @@ class LabeledCollector(Struct):
         return metrics_core.Metric(self._name, self._docs, self._metric._typ)
 
     def describe(self):
+        """Describe the metric
+
+        :return: An iterator yielding one metric with no samples
+        :rtype: Iterator[prometheus_client.metrics_core.Metric]
+        """
+
         yield self._family()
 
     def collect(self):
+        """Collect samples from the metric
+
+        :return: An iterator yielding one metric with samples collected from each label.
+        :rtype: Iterator[prometheus_client.metrics_core.Metric]
+        """
+
         family = self._family()
         with self._lock:
             with self._shared_lock:
@@ -241,8 +265,8 @@ class CollectorFactory:
         :param str subsystem: A subsystem name for the metric. This will be prepended to `name`
             after `namespace`.
         :param str unit: The unit of measurement for the metric. This will be appended to `name`.
-        :param registry: The registry to register this metric with. It will collect data from the
-            metric.
+        :param prometheus_client.registry.CollectorRegistry registry: The registry to register this
+            metric with. It will collect data from the metric.
         :param \\**kwargs: Any additional arguments are passed to the metric itself.
         :return: A new metric
         :rtype: Option[Collector, LabeledCollector]

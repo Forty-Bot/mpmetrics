@@ -35,8 +35,16 @@ mpmetrics.metrics
 -----------------
 
 .. automodule:: mpmetrics.metrics
-        :members:
-        :special-members: __call__
+
+        .. autoclass:: mpmetrics.metrics.CollectorFactory
+                :members:
+                :special-members: __call__
+
+        .. autoclass:: mpmetrics.metrics.Collector
+                :members:
+
+        .. autoclass:: mpmetrics.metrics.LabeledCollector
+                :members:
 
 mpmetrics.flask
 ---------------

@@ -1,10 +1,18 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 # Copyright (C) 2022 Sean Anderson <seanga2@gmail.com>
 
+"""Helpers for pickling polymorphic classes."""
+
 import importlib
 import itertools
 
 def saveattr(get):
+    """Save the result of `__getattr__`.
+
+    :param get: A `__getattr__` implementation
+
+    Wrap `get` and save the result with `setattr`.
+    """
     def wrapped(self, name):
         attr = get(self, name)
         setattr(self, name, attr)
@@ -12,6 +20,22 @@ def saveattr(get):
     return wrapped
 
 class ObjectType:
+    """Helper for classes polymorphic over classes.
+
+    This is a helper class to allow classes which are polymorphic over python
+    classes to be pickled. For example::
+
+        import pickle
+        from mpmetrics.generics import ObjectType
+
+        def MyClass(__name__, cls):
+            return type(__name__, (), locals())
+
+        MyClass = ObjectType('MyClass', MyClass)
+        assert MyClass[int].cls is int
+        assert pickle.loads(pickle.dumps(MyClass[int]())).cls is int
+    """
+
     class Attr:
         def __init__(self, name, cls, obj, nesting=1):
             self.name = name
@@ -50,6 +74,7 @@ class ObjectType:
 
     def __init__(self, name, cls):
         self.__qualname__ = name
+        self.__doc__ = cls.__doc__
         setattr(self, '<', self.Module(name + '.<', cls))
 
     def __getitem__(self, cls):
@@ -59,8 +84,25 @@ class ObjectType:
         return getattr(parent, '>')
 
 class IntType:
+    """Helper for classes polymorphic over integers.
+
+    This is a helper class to allow classes which are polymorphic over ints
+    to be pickled. For example::
+
+        import pickle
+        from mpmetrics.generics import IntType
+
+        def MyClass(__name__, x):
+            return type(__name__, (), locals())
+
+        MyClass = IntType('MyClass', MyClass)
+        assert MyClass[5].x == 5
+        assert pickle.loads(pickle.dumps(MyClass[5]())).x == 5
+    """
+
     def __init__(self, name, cls):
         self.__qualname__ = name
+        self.__doc__ = cls.__doc__
         self.name = name
         self.cls = cls
 
@@ -72,8 +114,25 @@ class IntType:
         return getattr(self, repr(n))
 
 class FloatType:
+    """Helper for classes polymorphic over floats.
+
+    This is a helper class to allow classes which are polymorphic over floats
+    to be pickled. For example::
+
+        import pickle
+        from mpmetrics.generics import FloatType
+
+        def MyClass(__name__, x):
+            return type(__name__, (), locals())
+
+        MyClass = FloatType('MyClass', MyClass)
+        assert MyClass[2.7].x == 2.7
+        assert pickle.loads(pickle.dumps(MyClass[2.7]())).x == 2.7
+    """
+
     def __init__(self, name, cls):
         self.__qualname__ = name
+        self.__doc__ = cls.__doc__
         self.name = name
         self.cls = cls
 
@@ -86,8 +145,26 @@ class FloatType:
 
 
 class ProductType:
+    """Helper to combine other types.
+
+    This is a helper class to allow classes which are polymorphic over multiple
+    types to be pickled. For example::
+
+        import pickle
+        from mpmetrics.generics import IntType, ObjectType, ProductType
+
+        def MyClass(__name__, cls, x):
+            return type(__name__, (), locals())
+
+        MyClass = ProductType('MyClass', MyClass, (ObjectType, IntType))
+        assert MyClass[int, 5].cls is int
+        assert MyClass[int, 5].x == 5
+        assert pickle.loads(pickle.dumps(MyClass[int, 5]())).x == 5
+    """
+
     def __init__(self, name, cls, argtypes, args=()):
         self.__qualname__ = name
+        self.__doc__ = cls.__doc__
         self.name = name
         self.cls = cls
         self.argtype = argtypes[0](self.name, self._chain)
@@ -113,8 +190,25 @@ class ProductType:
         return argtype
 
 class ListType:
+    """Helper to combine other types.
+
+    This is a helper class to allow classes which are polymorphic over multiple
+    types to be pickled. For example::
+
+        import pickle
+        from mpmetrics.generics import IntType, ListType
+
+        def MyClass(__name__, xs):
+            return type(__name__, (), locals())
+
+        MyClass = ListType('MyClass', MyClass, IntType)
+        assert MyClass[1, 2, 3].xs == (1, 2, 3)
+        assert pickle.loads(pickle.dumps(MyClass[1, 2, 3]())).xs == (1, 2, 3)
+    """
+
     def __init__(self, name, cls, elemtype):
         self.__qualname__ = name
+        self.__doc__ = cls.__doc__
         self.name = name
         self.cls = cls
         self.elemtype = elemtype
